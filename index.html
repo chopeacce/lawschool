@@ -341,8 +341,35 @@
   <div class="modal-overlay" id="detailModal" onclick="if(event.target===this)closeDetail()">
     <div class="modal">
       <span class="detail-chip" id="detailChip"></span>
-      <h3 id="detailTitle" style="margin-bottom:4px;"></h3>
       <div class="detail-sub" id="detailSub"></div>
+      <div class="form-group">
+        <label>제목 <span id="titleHint" style="font-weight:400;color:var(--soft)"></span></label>
+        <input type="text" id="detailTitle">
+      </div>
+      <div class="form-group">
+        <label>과목 <span id="subjHint" style="font-weight:400;color:var(--soft)"></span></label>
+        <select id="detailSubject"></select>
+      </div>
+      <div class="form-group" id="detailKindGroup" style="display:none">
+        <label>유형</label>
+        <select id="detailKind">
+          <option value="class">📖 수업</option>
+          <option value="reading">📚 리딩 과제</option>
+          <option value="assignment">📝 과제 제출</option>
+          <option value="study">👥 스터디</option>
+          <option value="office">🕐 오피스아워</option>
+          <option value="event">🏛 학교 행사 (OT·설명회 등)</option>
+          <option value="etc">📌 기타</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>우선순위</label>
+        <select id="detailPriority">
+          <option value="high">🔴 긴급·중요</option>
+          <option value="medium">🟡 중요·비긴급</option>
+          <option value="low">🟢 여유</option>
+        </select>
+      </div>
       <label class="done-toggle">
         <input type="checkbox" id="detailDone" onchange="detailToggleDone()">
         완료 (체크하면 캘린더에서 흐리게 표시돼요)
@@ -564,6 +591,7 @@
             autoDate: autoDate,
             moved: !!overrides[itemKey],
             src: 'plan',
+            planId: p.id,
             subjectId: p.subjectId,
             title: p.title,
             step: st.label,
@@ -800,7 +828,17 @@
       const chip = document.getElementById('detailChip');
       chip.textContent = s.name + ' · ' + meta.step;
       chip.style.background = meta.flag ? 'var(--exam)' : s.color;
-      document.getElementById('detailTitle').textContent = (meta.flag ? '⚑ ' : '') + meta.title;
+      document.getElementById('detailTitle').value = meta.title;
+      document.getElementById('titleHint').textContent = meta.src === 'plan' ? '· 세트 전체에 적용' : '';
+      document.getElementById('subjHint').textContent = meta.src === 'plan' ? '· 세트 전체에 적용' : '';
+      document.getElementById('detailSubject').innerHTML =
+        subjects.map(x => '<option value="' + x.id + '"' + (x.id === meta.subjectId ? ' selected' : '') + '>' + x.name + '</option>').join('');
+      document.getElementById('detailPriority').value = meta.priority;
+      document.getElementById('detailKindGroup').style.display = meta.src === 'single' ? 'block' : 'none';
+      if (meta.src === 'single') {
+        const ev = singles.find(x => x.id === meta.singleId);
+        if (ev) document.getElementById('detailKind').value = ev.kind;
+      }
       document.getElementById('detailSub').textContent =
         fmt(meta.date) + ' · ' + ddayLabel(dday(meta.date)) + ' · ' + PRI[meta.priority] + (meta.moved ? ' · 📌 수동 변경됨' : '');
       document.getElementById('detailDate').value = ymd(meta.date);
@@ -823,6 +861,27 @@
         const meta = detailMeta[currentDetailKey];
         const memo = document.getElementById('detailMemo').value.trim();
         if (memo) memos[currentDetailKey] = memo; else delete memos[currentDetailKey];
+
+        // 제목·과목·우선순위·유형 수정 반영
+        const newTitle = document.getElementById('detailTitle').value.trim();
+        const newSubj = document.getElementById('detailSubject').value;
+        const newPri = document.getElementById('detailPriority').value;
+        if (meta && meta.src === 'plan') {
+          const p = plans.find(x => x.id === meta.planId);
+          if (p) {
+            if (newTitle) p.title = newTitle;
+            if (newSubj) p.subjectId = newSubj;
+            p.priority = newPri;
+          }
+        } else if (meta && meta.src === 'single') {
+          const ev = singles.find(x => x.id === meta.singleId);
+          if (ev) {
+            if (newTitle) ev.title = newTitle;
+            if (newSubj) ev.subjectId = newSubj;
+            ev.priority = newPri;
+            ev.kind = document.getElementById('detailKind').value;
+          }
+        }
 
         // 날짜 변경 반영
         const newDate = document.getElementById('detailDate').value;
