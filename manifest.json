@@ -1,7 +1,7 @@
 {
-  "name": "로스쿨 도켓",
-  "short_name": "로스쿨 도켓",
-  "description": "로스쿨 학사 캘린더 & 데일리 투두",
+  "name": "Study Plan",
+  "short_name": "Study Plan",
+  "description": "Study Plan · 로스쿨 학사 캘린더 & 데일리 투두",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
