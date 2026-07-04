@@ -309,6 +309,7 @@
             <option value="assignment">📝 과제 제출</option>
             <option value="study">👥 스터디</option>
             <option value="office">🕐 오피스아워</option>
+            <option value="event">🏛 학교 행사 (OT·설명회 등)</option>
             <option value="etc">📌 기타</option>
           </select>
         </div>
@@ -447,13 +448,14 @@
       { id: 's4', name: '헌법', color: '#7A4FA3' },
       { id: 's5', name: '법률문서작성', color: '#B07C2A' },
       { id: 's6', name: '지식재산권', color: '#0E8A8A' },
-      { id: 's7', name: '기업법', color: '#C2603D' }
+      { id: 's7', name: '기업법', color: '#C2603D' },
+      { id: 's0', name: '학교·기타', color: '#5B6C8F' }
     ];
 
     const KIND_INFO = {
       class: { label: '수업' }, reading: { label: '리딩' },
       assignment: { label: '과제 제출' }, study: { label: '스터디' },
-      office: { label: '오피스아워' }, etc: { label: '기타' },
+      office: { label: '오피스아워' }, event: { label: '학교 행사' }, etc: { label: '기타' },
       briefdue: { label: 'Case Brief 마감', flag: true },
       examday: { label: 'FINAL 시험', flag: true }
     };
@@ -493,6 +495,14 @@
       memos = JSON.parse(localStorage.getItem(K.MEMOS) || '{}');
       settings = Object.assign(settings, JSON.parse(localStorage.getItem(K.SET) || '{}'));
       overrides = JSON.parse(localStorage.getItem(K.OVR) || '{}');
+
+      // 기존 설치본에 학교·기타 과목 1회 추가 (사용자가 삭제하면 다시 생기지 않음)
+      if (!settings.etcAdded) {
+        if (!subjects.some(s => s.id === 's0')) {
+          subjects.push({ id: 's0', name: '학교·기타', color: '#5B6C8F' });
+        }
+        settings.etcAdded = true;
+      }
 
       if (!plans) {
         // 첫 실행 예시 데이터 — 삭제하고 실제 일정으로 교체 가능
