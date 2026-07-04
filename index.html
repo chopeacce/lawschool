@@ -426,6 +426,15 @@
       localStorage.setItem(K.MEMOS, JSON.stringify(memos));
     }
 
+    // ---------- Tabs ----------
+    function switchTab(tab, btn) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(tab).classList.add('active');
+      btn.classList.add('active');
+      if (tab === 'today') renderToday(); // 열 때마다 D-day 갱신
+    }
+
     // ---------- Helpers ----------
     function subj(id) { return subjects.find(s => s.id === id) || { name: '기타', color: '#6E7A87' }; }
     function fmt(d) { return d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }); }
