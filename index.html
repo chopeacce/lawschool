@@ -26,6 +26,9 @@
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; }
+    @supports (height: 100dvh) {
+      html, body { height: 100dvh; } /* iOS 주소창 유무에 따라 실제 보이는 높이에 맞춤 */
+    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
       background: var(--paper); color: var(--ink);
@@ -36,8 +39,9 @@
     #app { display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; }
 
     .header {
-      padding: 16px; border-bottom: 3px double var(--ink); background: var(--paper);
-      flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px;
+      padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
+      border-bottom: 3px double var(--ink); background: var(--paper);
+      flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; gap: 8px;
     }
     .header-title h1 { font-family: Georgia, 'Noto Serif KR', serif; font-size: 20px; font-weight: 700; margin-bottom: 3px; }
     .header-title p { font-size: 11px; color: var(--soft); letter-spacing: 0.06em; }
@@ -63,6 +67,17 @@
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
+    /* 임박·긴급 배너 */
+    .alert-banner {
+      flex-shrink: 0; background: var(--exam); color: #fff;
+      padding: 8px 12px; font-size: 12px; font-weight: 700;
+      display: flex; align-items: center; gap: 8px; cursor: pointer;
+      animation: pulse 2.4s ease-in-out infinite;
+    }
+    .alert-banner span { flex: 1; line-height: 1.4; min-width: 0; }
+    .alert-close { background: transparent; border: none; color: #fff; font-size: 14px; cursor: pointer; padding: 2px 6px; flex-shrink: 0; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
+
     /* Legend */
     .legend { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
     .legend span {
@@ -74,10 +89,10 @@
     .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     .calendar-header h2 { font-family: Georgia, serif; font-size: 16px; }
     .nav-btn { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: 14px; color: var(--ink); }
-    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
     .weekday { text-align: center; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #fff; background: var(--ink); padding: 5px 0; }
     .weekday.wsun { color: #F5B7B1; } .weekday.wsat { color: #AED6F1; }
-    .day { min-height: 74px; background: #fff; border: 1px solid var(--line); padding: 3px; border-radius: 3px; }
+    .day { min-height: 74px; min-width: 0; overflow: hidden; background: #fff; border: 1px solid var(--line); padding: 3px; border-radius: 3px; }
     .day.empty { background: transparent; border-color: transparent; }
     .day.today { outline: 2px solid var(--ink); outline-offset: -2px; }
     .day.hotday { background: #FCF0EE; }
@@ -190,7 +205,7 @@
 
     /* 아이폰 세로 화면 최적화 */
     @media (max-width: 430px) {
-      .header { padding: 12px 12px 10px; }
+      .header { padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px; }
       .header-title h1 { font-size: 17px; }
       .header-title p { font-size: 9.5px; }
       .btn-add, .btn-subj { padding: 7px 10px; font-size: 11.5px; }
@@ -221,9 +236,15 @@
         <p>LAW SCHOOL · 학사 캘린더 & 데일리 투두</p>
       </div>
       <div class="header-btns">
+        <button class="btn-subj" onclick="showSettings()">⚙</button>
         <button class="btn-subj" onclick="showSubjects()">과목</button>
         <button class="btn-add" onclick="showForm()">+ 추가</button>
       </div>
+    </div>
+
+    <div class="alert-banner" id="alertBanner" style="display:none" onclick="goToday()">
+      <span id="alertText"></span>
+      <button class="alert-close" onclick="event.stopPropagation();dismissBanner()" title="오늘 하루 숨기기">✕</button>
     </div>
 
     <div class="content">
@@ -335,6 +356,36 @@
     </div>
   </div>
 
+  <!-- Settings Modal -->
+  <div class="modal-overlay" id="settingsModal" onclick="if(event.target===this)hideSettings()">
+    <div class="modal">
+      <h3>⚑ 임박·긴급 배너 설정</h3>
+      <label class="done-toggle">
+        <input type="checkbox" id="setBannerOn"> 배너 켜기 (마감 임박 시 상단에 자동 표시)
+      </label>
+      <div class="form-group">
+        <label>며칠 전부터 알릴까요?</label>
+        <select id="setBannerDays">
+          <option value="0">당일만 (D-DAY)</option>
+          <option value="1">1일 전부터</option>
+          <option value="2">2일 전부터</option>
+          <option value="3" selected>3일 전부터</option>
+          <option value="5">5일 전부터</option>
+          <option value="7">7일 전부터</option>
+          <option value="14">14일 전부터</option>
+        </select>
+      </div>
+      <label class="done-toggle">
+        <input type="checkbox" id="setBannerOverdue"> 지난 마감(D+)도 포함
+      </label>
+      <p style="font-size:11px;color:var(--soft);margin-bottom:6px;">배너의 ✕는 오늘 하루만 숨기고, 내일 다시 나타나요. 배너를 누르면 [오늘] 탭으로 이동합니다.</p>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="hideSettings()">닫기</button>
+        <button type="button" class="btn btn-primary" onclick="saveSettings()">저장</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Subject Manager Modal -->
   <div class="modal-overlay" id="subjModal" onclick="if(event.target===this)hideSubjects()">
     <div class="modal">
@@ -366,13 +417,15 @@
     let currentDetailKey = null;
     let currentDate = new Date();
     let selectedColor = null;
+    let settings = { bannerOn: true, bannerDays: 3, bannerOverdue: true, dismissedOn: '' };
 
     const K = {
       SUBJ: 'lawdocket-subjects',
       PLANS: 'lawdocket-plans',
       SINGLES: 'lawdocket-singles',
       DONE: 'lawdocket-done',
-      MEMOS: 'lawdocket-memos'
+      MEMOS: 'lawdocket-memos',
+      SET: 'lawdocket-settings'
     };
 
     const PALETTE = ['#1F6FB2','#B23A48','#2E7D5B','#7A4FA3','#B07C2A','#0E8A8A','#C2603D','#5B6C8F','#8A5A83','#4B7F52','#A8323E','#3D6B99'];
@@ -428,6 +481,7 @@
       singles = JSON.parse(localStorage.getItem(K.SINGLES) || 'null');
       doneMap = JSON.parse(localStorage.getItem(K.DONE) || '{}');
       memos = JSON.parse(localStorage.getItem(K.MEMOS) || '{}');
+      settings = Object.assign(settings, JSON.parse(localStorage.getItem(K.SET) || '{}'));
 
       if (!plans) {
         // 첫 실행 예시 데이터 — 삭제하고 실제 일정으로 교체 가능
@@ -450,6 +504,7 @@
       localStorage.setItem(K.SINGLES, JSON.stringify(singles));
       localStorage.setItem(K.DONE, JSON.stringify(doneMap));
       localStorage.setItem(K.MEMOS, JSON.stringify(memos));
+      localStorage.setItem(K.SET, JSON.stringify(settings));
     }
 
     // ---------- Tabs ----------
@@ -511,6 +566,56 @@
       renderToday();
       renderList();
       renderSubjectSelect();
+      renderBanner();
+    }
+
+    // ---------- 임박·긴급 배너 ----------
+    function urgentItems() {
+      return allItems().filter(it => {
+        if (doneMap[it.itemKey]) return false;
+        const n = dday(it.date);
+        if (n >= 0 && n <= settings.bannerDays) return true;
+        if (settings.bannerOverdue && n < 0) return true;
+        return false;
+      }).sort((a,b) => a.date - b.date || (b.flag?1:0)-(a.flag?1:0) || PRI_ORD[a.priority]-PRI_ORD[b.priority]);
+    }
+
+    function renderBanner() {
+      const b = document.getElementById('alertBanner');
+      if (!settings.bannerOn || settings.dismissedOn === ymd(new Date())) { b.style.display = 'none'; return; }
+      const items = urgentItems();
+      if (!items.length) { b.style.display = 'none'; return; }
+      const first = items[0];
+      const n = dday(first.date);
+      const more = items.length > 1 ? ' 외 ' + (items.length - 1) + '건' : '';
+      document.getElementById('alertText').textContent =
+        '⚑ ' + ddayLabel(n) + ' · ' + first.title + ' — ' + first.step + more;
+      b.style.display = 'flex';
+    }
+
+    function dismissBanner() {
+      settings.dismissedOn = ymd(new Date());
+      saveData(); renderBanner();
+    }
+
+    function goToday() {
+      const btn = document.querySelectorAll('.tab-btn')[1];
+      if (btn) switchTab('today', btn);
+    }
+
+    function showSettings() {
+      document.getElementById('setBannerOn').checked = settings.bannerOn;
+      document.getElementById('setBannerDays').value = String(settings.bannerDays);
+      document.getElementById('setBannerOverdue').checked = settings.bannerOverdue;
+      document.getElementById('settingsModal').classList.add('active');
+    }
+    function hideSettings() { document.getElementById('settingsModal').classList.remove('active'); }
+    function saveSettings() {
+      settings.bannerOn = document.getElementById('setBannerOn').checked;
+      settings.bannerDays = parseInt(document.getElementById('setBannerDays').value, 10) || 0;
+      settings.bannerOverdue = document.getElementById('setBannerOverdue').checked;
+      settings.dismissedOn = ''; // 설정을 바꾸면 숨김 해제하고 다시 표시
+      saveData(); renderBanner(); hideSettings();
     }
 
     // ---------- Legend ----------
@@ -601,7 +706,7 @@
     function quickToggle(itemKey, checked) {
       doneMap[itemKey] = checked;
       saveData();
-      renderCalendar(); renderToday(); renderList();
+      renderCalendar(); renderToday(); renderList(); renderBanner();
     }
 
     // ---------- List ----------
@@ -675,7 +780,7 @@
       if (!currentDetailKey) return;
       doneMap[currentDetailKey] = document.getElementById('detailDone').checked;
       saveData();
-      renderCalendar(); renderToday(); renderList();
+      renderCalendar(); renderToday(); renderList(); renderBanner();
     }
 
     function closeDetail() {
@@ -683,7 +788,7 @@
         const memo = document.getElementById('detailMemo').value.trim();
         if (memo) memos[currentDetailKey] = memo; else delete memos[currentDetailKey];
         saveData();
-        renderCalendar(); renderToday(); renderList();
+        renderCalendar(); renderToday(); renderList(); renderBanner();
       }
       currentDetailKey = null;
       document.getElementById('detailModal').classList.remove('active');
