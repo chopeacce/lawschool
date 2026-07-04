@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#FBFAF7">
+  <meta name="description" content="로스쿨 도켓 · 학사 캘린더 & 데일리 투두">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="로스쿨 도켓">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+
+  <title>로스쿨 도켓</title>
+  <style>
+    :root {
+      --paper: #FBFAF7;
+      --ink: #1C2733;
+      --soft: #6E7A87;
+      --line: #E3DFD4;
+      --exam: #C0392B;
+      --caseblue: #1F6FB2;
+      --safe-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+      background: var(--paper); color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+      -webkit-user-select: none; user-select: none;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    #app { display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; }
+
+    .header {
+      padding: 16px; border-bottom: 3px double var(--ink); background: var(--paper);
+      flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    }
+    .header-title h1 { font-family: Georgia, 'Noto Serif KR', serif; font-size: 20px; font-weight: 700; margin-bottom: 3px; }
+    .header-title p { font-size: 11px; color: var(--soft); letter-spacing: 0.06em; }
+    .header-btns { display: flex; gap: 6px; flex-shrink: 0; }
+    .btn-add, .btn-subj {
+      border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer;
+      font-size: 12px; font-weight: 600; white-space: nowrap;
+    }
+    .btn-add { background: var(--ink); color: #fff; }
+    .btn-subj { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+    .btn-add:active, .btn-subj:active { opacity: 0.75; }
+
+    .content {
+      flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch;
+      padding: 14px 14px calc(16px + var(--safe-bottom));
+    }
+    .tab-nav { display: flex; gap: 6px; margin-bottom: 16px; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+    .tab-btn {
+      flex: 1; background: transparent; border: 1px solid var(--line); border-radius: 6px;
+      padding: 8px 4px; font-size: 12.5px; font-weight: 600; color: var(--soft); cursor: pointer;
+    }
+    .tab-btn.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Legend */
+    .legend { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+    .legend span {
+      font-size: 10px; font-weight: 600; color: #fff;
+      padding: 2px 8px; border-radius: 999px;
+    }
+
+    /* Calendar */
+    .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .calendar-header h2 { font-family: Georgia, serif; font-size: 16px; }
+    .nav-btn { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: 14px; color: var(--ink); }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+    .weekday { text-align: center; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #fff; background: var(--ink); padding: 5px 0; }
+    .weekday.wsun { color: #F5B7B1; } .weekday.wsat { color: #AED6F1; }
+    .day { min-height: 74px; background: #fff; border: 1px solid var(--line); padding: 3px; border-radius: 3px; }
+    .day.empty { background: transparent; border-color: transparent; }
+    .day.today { outline: 2px solid var(--ink); outline-offset: -2px; }
+    .day.hotday { background: #FCF0EE; }
+    .day-num { font-size: 10.5px; font-weight: 700; margin-bottom: 2px; font-variant-numeric: tabular-nums; }
+    .day.today .day-num::after { content: ' 오늘'; font-size: 8.5px; color: var(--exam); }
+    .day-items { display: flex; flex-direction: column; gap: 2px; }
+    .day-item {
+      font-size: 9px; line-height: 1.25; color: #fff; border-radius: 3px;
+      padding: 2px 4px; cursor: pointer; overflow: hidden;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    }
+    .day-item.hot { font-weight: 800; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.55); }
+    .day-item.done { opacity: 0.38; text-decoration: line-through; }
+
+    /* Today tab */
+    .today-sec h3 { font-family: Georgia, serif; font-size: 14px; margin: 6px 0 8px; border-bottom: 2px solid var(--ink); padding-bottom: 4px; }
+    .todo-row {
+      display: flex; align-items: flex-start; gap: 8px; background: #fff;
+      border: 1px solid var(--line); border-left-width: 4px; border-radius: 6px;
+      padding: 9px 10px; margin-bottom: 6px; cursor: pointer;
+    }
+    .todo-row input[type="checkbox"] { margin-top: 2px; width: 17px; height: 17px; accent-color: var(--ink); cursor: pointer; }
+    .todo-main { flex: 1; min-width: 0; }
+    .todo-title { font-size: 13px; font-weight: 600; line-height: 1.35; }
+    .todo-sub { font-size: 11px; color: var(--soft); margin-top: 1px; }
+    .todo-row.done .todo-title { text-decoration: line-through; color: var(--soft); }
+    .dbadge {
+      flex-shrink: 0; font-size: 10px; font-weight: 800; padding: 2px 7px;
+      border-radius: 4px; background: #EFECE4; color: var(--ink); align-self: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .dbadge.due { background: var(--exam); color: #fff; }
+    .empty-msg { text-align: center; color: var(--soft); font-size: 12.5px; padding: 14px 0; }
+
+    /* List tab */
+    .plan-card {
+      background: #fff; border: 1px solid var(--line); border-radius: 8px;
+      padding: 12px; margin-bottom: 10px; position: relative;
+      border-left-width: 5px;
+    }
+    .plan-card.hi { box-shadow: 0 0 0 1px var(--exam); }
+    .btn-delete { position: absolute; top: 6px; right: 6px; background: transparent; border: none; cursor: pointer; color: var(--soft); padding: 4px; font-size: 15px; }
+    .plan-subj { font-size: 10px; font-weight: 700; color: #fff; padding: 2px 8px; border-radius: 999px; display: inline-block; }
+    .plan-title { font-size: 14.5px; font-weight: 700; margin: 5px 0 1px; line-height: 1.35; }
+    .plan-title .case { color: var(--caseblue); font-style: italic; text-decoration: underline; }
+    .plan-sub { font-size: 11px; color: var(--soft); }
+    .tasks { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 9px 0 0; }
+    .task {
+      display: flex; gap: 6px; align-items: flex-start; padding: 6px;
+      background: #F7F5F0; border-radius: 4px; cursor: pointer; border-left: 3px solid var(--line);
+    }
+    .task input[type="checkbox"] { margin-top: 2px; cursor: pointer; width: 15px; height: 15px; accent-color: var(--ink); }
+    .task-label { font-size: 10px; }
+    .task-label strong { display: block; font-weight: 600; margin-bottom: 1px; }
+    .task-date { font-size: 9px; color: var(--soft); }
+    .task.done .task-label strong { text-decoration: line-through; color: var(--soft); }
+    .task.flagged { border-left-color: var(--exam); background: #FCF0EE; }
+    .plan-meta { font-size: 11px; color: var(--soft); border-top: 1px solid var(--line); padding-top: 7px; margin-top: 9px; display: flex; justify-content: space-between; }
+    .pri { font-weight: 700; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(28,39,51,0.45);
+      display: none; align-items: flex-end; z-index: 1000; animation: slideIn 0.25s ease-out;
+    }
+    .modal-overlay.active { display: flex; }
+    @keyframes slideIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .modal {
+      background: var(--paper); border-radius: 16px 16px 0 0; padding: 20px;
+      width: 100%; max-height: 90vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding-bottom: calc(20px + var(--safe-bottom));
+    }
+    .modal h3 { font-family: Georgia, serif; font-size: 17px; font-weight: 700; margin-bottom: 14px; }
+    .form-group { margin-bottom: 13px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 6px;
+      font-size: 14px; font-family: inherit; color: var(--ink); background: #fff;
+      -webkit-user-select: text; user-select: text;
+    }
+    .form-group textarea { min-height: 96px; resize: vertical; line-height: 1.5; }
+    .form-actions { display: flex; gap: 10px; margin-top: 18px; }
+    .btn { flex: 1; padding: 12px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 14px; }
+    .btn-secondary { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+    .btn-primary { background: var(--ink); color: #fff; }
+    .btn-primary:active { opacity: 0.8; }
+
+    .detail-chip { font-size: 10.5px; font-weight: 700; color: #fff; padding: 3px 10px; border-radius: 999px; display: inline-block; margin-bottom: 8px; }
+    .detail-sub { font-size: 12px; color: var(--soft); margin-bottom: 10px; }
+    .done-toggle {
+      display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;
+      background: #F1EEE6; border-radius: 6px; padding: 10px; margin-bottom: 12px; cursor: pointer;
+    }
+    .done-toggle input { width: 17px; height: 17px; accent-color: var(--ink); }
+
+    /* Subject manager */
+    .subj-row { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; }
+    .subj-dot { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; }
+    .subj-name { flex: 1; font-size: 13px; font-weight: 600; }
+    .subj-del { background: transparent; border: none; color: var(--soft); font-size: 14px; cursor: pointer; padding: 2px 6px; }
+    .palette { display: flex; flex-wrap: wrap; gap: 8px; }
+    .swatch { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; }
+    .swatch.sel { border-color: var(--ink); }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="header">
+      <div class="header-title">
+        <h1>로스쿨 도켓</h1>
+        <p>LAW SCHOOL · 학사 캘린더 & 데일리 투두</p>
+      </div>
+      <div class="header-btns">
+        <button class="btn-subj" onclick="showSubjects()">과목</button>
+        <button class="btn-add" onclick="showForm()">+ 추가</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab('calendar', this)">📅 캘린더</button>
+        <button class="tab-btn" onclick="switchTab('today', this)">✅ 오늘</button>
+        <button class="tab-btn" onclick="switchTab('list', this)">📋 목록</button>
+      </div>
+
+      <!-- Calendar Tab -->
+      <div id="calendar" class="tab-content active">
+        <div class="legend" id="legend"></div>
+        <div class="calendar-header">
+          <button class="nav-btn" onclick="prevMonth()">←</button>
+          <h2 id="monthDisplay"></h2>
+          <button class="nav-btn" onclick="nextMonth()">→</button>
+        </div>
+        <div class="calendar-grid" id="calendar-grid"></div>
+      </div>
+
+      <!-- Today Tab -->
+      <div id="today" class="tab-content">
+        <div class="today-sec">
+          <h3 id="todayHeading">오늘 할 일</h3>
+          <div id="today-list"></div>
+        </div>
+        <div class="today-sec" style="margin-top:18px">
+          <h3>다가오는 마감 (7일)</h3>
+          <div id="upcoming-list"></div>
+        </div>
+      </div>
+
+      <!-- List Tab -->
+      <div id="list" class="tab-content">
+        <div id="plan-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Modal -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <h3>새 일정 추가</h3>
+      <div class="form-group">
+        <label>일정 종류</label>
+        <select id="modeInput" onchange="onModeChange()">
+          <option value="brief" selected>Case Brief 세트 (리딩 → IRAC 초안 → 제출 자동 배정)</option>
+          <option value="exam">Finals 세트 (아웃라인 → 모의답안 → 최종점검 → 시험)</option>
+          <option value="single">단일 일정 (수업·리딩·과제 등)</option>
+        </select>
+      </div>
+      <form onsubmit="addItem(event)">
+        <div class="form-group">
+          <label>과목</label>
+          <select id="subjectInput"></select>
+        </div>
+        <div class="form-group" id="kindGroup" style="display:none">
+          <label>유형</label>
+          <select id="kindInput">
+            <option value="class">📖 수업</option>
+            <option value="reading">📚 리딩 과제</option>
+            <option value="assignment">📝 과제 제출</option>
+            <option value="study">👥 스터디</option>
+            <option value="office">🕐 오피스아워</option>
+            <option value="etc">📌 기타</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label id="titleLabel">제목 (판례명·과제명)</label>
+          <input type="text" id="titleInput" placeholder="예: Palsgraf v. Long Island R.R." required>
+        </div>
+        <div class="form-group">
+          <label id="dateLabel">마감일</label>
+          <input type="date" id="dateInput" required>
+        </div>
+        <div class="form-group">
+          <label>우선순위 (긴급도 × 중요도)</label>
+          <select id="priorityInput">
+            <option value="high">🔴 긴급·중요</option>
+            <option value="medium" selected>🟡 중요·비긴급</option>
+            <option value="low">🟢 여유</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="hideForm()">취소</button>
+          <button type="submit" class="btn btn-primary">추가하기</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Detail Modal -->
+  <div class="modal-overlay" id="detailModal" onclick="if(event.target===this)closeDetail()">
+    <div class="modal">
+      <span class="detail-chip" id="detailChip"></span>
+      <h3 id="detailTitle" style="margin-bottom:4px;"></h3>
+      <div class="detail-sub" id="detailSub"></div>
+      <label class="done-toggle">
+        <input type="checkbox" id="detailDone" onchange="detailToggleDone()">
+        완료 (체크하면 캘린더에서 흐리게 표시돼요)
+      </label>
+      <div class="form-group">
+        <label>메모</label>
+        <textarea id="detailMemo" placeholder="IRAC 메모 — Issue / Rule / Application / Conclusion, 교수님 코멘트, 페이지 범위 등"></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-primary" onclick="closeDetail()">저장하고 닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Subject Manager Modal -->
+  <div class="modal-overlay" id="subjModal" onclick="if(event.target===this)hideSubjects()">
+    <div class="modal">
+      <h3>과목 관리</h3>
+      <div id="subjList"></div>
+      <div class="form-group" style="margin-top:14px">
+        <label>새 과목 이름</label>
+        <input type="text" id="newSubjName" placeholder="예: 형법">
+      </div>
+      <div class="form-group">
+        <label>컬러 선택</label>
+        <div class="palette" id="palette"></div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="hideSubjects()">닫기</button>
+        <button type="button" class="btn btn-primary" onclick="addSubject()">과목 추가</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Data ----------
+    let subjects = [];
+    let plans = [];        // 자동 배정 세트 (brief / exam)
+    let singles = [];      // 단일 일정
+    let doneMap = {};
+    let memos = {};
+    let detailMeta = {};
+    let currentDetailKey = null;
+    let currentDate = new Date();
+    let selectedColor = null;
+
+    const K = {
+      SUBJ: 'lawdocket-subjects',
+      PLANS: 'lawdocket-plans',
+      SINGLES: 'lawdocket-singles',
+      DONE: 'lawdocket-done',
+      MEMOS: 'lawdocket-memos'
+    };
+
+    const PALETTE = ['#1F6FB2','#B23A48','#2E7D5B','#7A4FA3','#B07C2A','#0E8A8A','#C2603D','#5B6C8F','#8A5A83','#4B7F52','#A8323E','#3D6B99'];
+
+    const DEFAULT_SUBJECTS = [
+      { id: 's1', name: '계약법', color: '#1F6FB2' },
+      { id: 's2', name: '불법행위법', color: '#B23A48' },
+      { id: 's3', name: '민사소송법', color: '#2E7D5B' },
+      { id: 's4', name: '헌법', color: '#7A4FA3' },
+      { id: 's5', name: '법률문서작성', color: '#B07C2A' },
+      { id: 's6', name: '지식재산권', color: '#0E8A8A' },
+      { id: 's7', name: '기업법', color: '#C2603D' }
+    ];
+
+    const KIND_INFO = {
+      class: { label: '수업' }, reading: { label: '리딩' },
+      assignment: { label: '과제 제출' }, study: { label: '스터디' },
+      office: { label: '오피스아워' }, etc: { label: '기타' },
+      briefdue: { label: 'Case Brief 마감', flag: true },
+      examday: { label: 'FINAL 시험', flag: true }
+    };
+
+    // 자동 배정 스텝 (마감일 역산)
+    const PLAN_STEPS = {
+      brief: [
+        { off: -3, key: 'read',  label: '리딩·판례 분석', kind: 'reading' },
+        { off: -1, key: 'draft', label: 'IRAC 초안 작성', kind: 'assignment' },
+        { off:  0, key: 'due',   label: '제출 마감', kind: 'briefdue' }
+      ],
+      exam: [
+        { off: -7, key: 'outline', label: '아웃라인 정리', kind: 'reading' },
+        { off: -3, key: 'mock',    label: '모의답안 작성', kind: 'assignment' },
+        { off: -1, key: 'review',  label: '최종 점검', kind: 'study' },
+        { off:  0, key: 'exam',    label: '시험', kind: 'examday' }
+      ]
+    };
+
+    function init() {
+      loadData();
+      renderAll();
+      registerServiceWorker();
+    }
+
+    function registerServiceWorker() {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      }
+    }
+
+    function loadData() {
+      subjects = JSON.parse(localStorage.getItem(K.SUBJ) || 'null') || DEFAULT_SUBJECTS.slice();
+      plans = JSON.parse(localStorage.getItem(K.PLANS) || 'null');
+      singles = JSON.parse(localStorage.getItem(K.SINGLES) || 'null');
+      doneMap = JSON.parse(localStorage.getItem(K.DONE) || '{}');
+      memos = JSON.parse(localStorage.getItem(K.MEMOS) || '{}');
+
+      if (!plans) {
+        // 첫 실행 예시 데이터 — 삭제하고 실제 일정으로 교체 가능
+        plans = [
+          { id: 1, subjectId: 's2', title: 'Palsgraf v. Long Island R.R. 브리프', dueDate: '2026-07-08', planType: 'brief', priority: 'high' },
+          { id: 2, subjectId: 's4', title: '헌법 기말시험', dueDate: '2026-07-27', planType: 'exam', priority: 'high' },
+          { id: 3, subjectId: 's1', title: '계약법 기말시험', dueDate: '2026-07-30', planType: 'exam', priority: 'high' }
+        ];
+      }
+      if (!singles) {
+        singles = [
+          { id: 101, subjectId: 's6', title: '상표 희석화 발제 (Moseley 판례)', date: '2026-07-14', kind: 'assignment', priority: 'high' }
+        ];
+      }
+    }
+
+    function saveData() {
+      localStorage.setItem(K.SUBJ, JSON.stringify(subjects));
+      localStorage.setItem(K.PLANS, JSON.stringify(plans));
+      localStorage.setItem(K.SINGLES, JSON.stringify(singles));
+      localStorage.setItem(K.DONE, JSON.stringify(doneMap));
+      localStorage.setItem(K.MEMOS, JSON.stringify(memos));
+    }
+
+    // ---------- Helpers ----------
+    function subj(id) { return subjects.find(s => s.id === id) || { name: '기타', color: '#6E7A87' }; }
+    function fmt(d) { return d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }); }
+    function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+    function addDays(dateStr, n) { const d = new Date(dateStr + 'T00:00:00'); d.setDate(d.getDate() + n); return d; }
+    function today0() { const t = new Date(); t.setHours(0,0,0,0); return t; }
+    function dday(date) { return Math.round((date - today0()) / 86400000); }
+    function ddayLabel(n) { return n === 0 ? 'D-DAY' : (n > 0 ? 'D-' + n : 'D+' + Math.abs(n)); }
+    const PRI = { high: '🔴 긴급·중요', medium: '🟡 중요·비긴급', low: '🟢 여유' };
+    const PRI_ORD = { high: 0, medium: 1, low: 2 };
+
+    // 모든 일정을 개별 아이템으로 펼치기
+    function allItems() {
+      const items = [];
+      plans.forEach(p => {
+        const steps = PLAN_STEPS[p.planType] || [];
+        steps.forEach(st => {
+          items.push({
+            itemKey: p.id + '-' + st.key,
+            date: addDays(p.dueDate, st.off),
+            subjectId: p.subjectId,
+            title: p.title,
+            step: st.label,
+            kind: st.kind,
+            flag: !!KIND_INFO[st.kind].flag,
+            priority: p.priority
+          });
+        });
+      });
+      singles.forEach(ev => {
+        items.push({
+          itemKey: 'ev-' + ev.id,
+          date: new Date(ev.date + 'T00:00:00'),
+          subjectId: ev.subjectId,
+          title: ev.title,
+          step: KIND_INFO[ev.kind] ? KIND_INFO[ev.kind].label : '일정',
+          kind: ev.kind,
+          flag: !!(KIND_INFO[ev.kind] && KIND_INFO[ev.kind].flag),
+          priority: ev.priority || 'medium'
+        });
+      });
+      return items;
+    }
+
+    function renderAll() {
+      renderLegend();
+      renderCalendar();
+      renderToday();
+      renderList();
+      renderSubjectSelect();
+    }
+
+    // ---------- Legend ----------
+    function renderLegend() {
+      document.getElementById('legend').innerHTML =
+        subjects.map(s => `<span style="background:${s.color}">${s.name}</span>`).join('') +
+        `<span style="background:var(--exam)">⚑ 마감·시험</span>`;
+    }
+
+    // ---------- Calendar ----------
+    function renderCalendar() {
+      document.getElementById('monthDisplay').textContent =
+        currentDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long' });
+
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      detailMeta = {};
+      const dayMap = {};
+      allItems().forEach(it => {
+        const key = it.date.toDateString();
+        if (!dayMap[key]) dayMap[key] = [];
+        dayMap[key].push(it);
+        detailMeta[it.itemKey] = it;
+      });
+
+      let html = '';
+      ['일','월','화','수','목','금','토'].forEach((d, i) => {
+        html += `<div class="weekday${i===0?' wsun':i===6?' wsat':''}">${d}</div>`;
+      });
+      for (let i = 0; i < firstDay; i++) html += '<div class="day empty"></div>';
+
+      const todayStr = new Date().toDateString();
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(year, month, day);
+        const items = (dayMap[date.toDateString()] || []).sort((a,b) => (b.flag?1:0)-(a.flag?1:0) || PRI_ORD[a.priority]-PRI_ORD[b.priority]);
+        const hasFlag = items.some(it => it.flag && !doneMap[it.itemKey]);
+        const itemsHtml = items.map(it => {
+          const done = doneMap[it.itemKey] ? ' done' : '';
+          const hot = it.flag ? ' hot' : '';
+          const memoMark = memos[it.itemKey] ? ' 📝' : '';
+          const flagMark = it.flag ? '⚑ ' : '';
+          const bg = it.flag ? 'var(--exam)' : subj(it.subjectId).color;
+          return `<div class="day-item${hot}${done}" style="background:${bg}" onclick="openDetail('${it.itemKey}')">${flagMark}${it.title}${memoMark}</div>`;
+        }).join('');
+        const cls = ['day']; if (date.toDateString() === todayStr) cls.push('today'); if (hasFlag) cls.push('hotday');
+        html += `<div class="${cls.join(' ')}"><div class="day-num">${day}</div>${itemsHtml ? `<div class="day-items">${itemsHtml}</div>` : ''}</div>`;
+      }
+      document.getElementById('calendar-grid').innerHTML = html;
+    }
+
+    function prevMonth() { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); }
+    function nextMonth() { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); }
+
+    // ---------- Today ----------
+    function renderToday() {
+      const t0 = today0();
+      document.getElementById('todayHeading').textContent = '오늘 할 일 · ' + fmt(t0);
+      const items = allItems();
+      items.forEach(it => { detailMeta[it.itemKey] = it; });
+
+      const sorter = (a,b) => a.date - b.date || (b.flag?1:0)-(a.flag?1:0) || PRI_ORD[a.priority]-PRI_ORD[b.priority];
+      const todays = items.filter(it => dday(it.date) === 0).sort(sorter);
+      const upcoming = items.filter(it => { const n = dday(it.date); return n >= 1 && n <= 7 && !doneMap[it.itemKey]; }).sort(sorter);
+
+      const row = it => {
+        const s = subj(it.subjectId);
+        const n = dday(it.date);
+        const checked = doneMap[it.itemKey] ? 'checked' : '';
+        return `<div class="todo-row${doneMap[it.itemKey]?' done':''}" style="border-left-color:${it.flag?'var(--exam)':s.color}" onclick="openDetail('${it.itemKey}')">
+          <input type="checkbox" ${checked} onclick="event.stopPropagation()" onchange="quickToggle('${it.itemKey}', this.checked)">
+          <div class="todo-main">
+            <div class="todo-title">${it.flag?'⚑ ':''}${it.title}</div>
+            <div class="todo-sub">${s.name} · ${it.step} · ${PRI[it.priority]}${memos[it.itemKey]?' · 📝':''}</div>
+          </div>
+          <span class="dbadge${n<=0&&it.flag?' due':''}">${ddayLabel(n)}</span>
+        </div>`;
+      };
+
+      document.getElementById('today-list').innerHTML =
+        todays.length ? todays.map(row).join('') : '<p class="empty-msg">오늘 예정된 일정이 없어요 ☕</p>';
+      document.getElementById('upcoming-list').innerHTML =
+        upcoming.length ? upcoming.map(row).join('') : '<p class="empty-msg">7일 내 다가오는 마감이 없어요</p>';
+    }
+
+    function quickToggle(itemKey, checked) {
+      doneMap[itemKey] = checked;
+      saveData();
+      renderCalendar(); renderToday(); renderList();
+    }
+
+    // ---------- List ----------
+    function renderList() {
+      const planHtml = plans.slice().sort((a,b) => a.dueDate.localeCompare(b.dueDate)).map(p => {
+        const s = subj(p.subjectId);
+        const steps = PLAN_STEPS[p.planType] || [];
+        const taskHtml = steps.map(st => {
+          const itemKey = p.id + '-' + st.key;
+          const isDone = doneMap[itemKey];
+          const memoMark = memos[itemKey] ? ' 📝' : '';
+          const d = addDays(p.dueDate, st.off);
+          const dateStr = d.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
+          return `<label class="task${isDone?' done':''}${KIND_INFO[st.kind].flag?' flagged':''}" style="border-left-color:${KIND_INFO[st.kind].flag?'':s.color}">
+            <input type="checkbox" ${isDone?'checked':''} onchange="quickToggle('${itemKey}', this.checked)">
+            <div class="task-label"><strong>${KIND_INFO[st.kind].flag?'⚑ ':''}${st.label}</strong><span class="task-date">${dateStr}${memoMark}</span></div>
+          </label>`;
+        }).join('');
+        const due = new Date(p.dueDate + 'T00:00:00');
+        const n = dday(due);
+        return `<div class="plan-card${p.priority==='high'?' hi':''}" style="border-left-color:${s.color}">
+          <button class="btn-delete" onclick="deletePlan(${p.id})">✕</button>
+          <span class="plan-subj" style="background:${s.color}">${s.name}</span>
+          <div class="plan-title">${p.title}</div>
+          <div class="plan-sub">${p.planType==='exam'?'Finals 세트':'Case Brief 세트'} · 마감 ${fmt(due)}</div>
+          <div class="tasks">${taskHtml}</div>
+          <div class="plan-meta"><span class="pri">${PRI[p.priority]}</span><span>${ddayLabel(n)}</span></div>
+        </div>`;
+      }).join('');
+
+      const singleHtml = singles.slice().sort((a,b) => a.date.localeCompare(b.date)).map(ev => {
+        const s = subj(ev.subjectId);
+        const itemKey = 'ev-' + ev.id;
+        const isDone = doneMap[itemKey];
+        const d = new Date(ev.date + 'T00:00:00');
+        const flag = KIND_INFO[ev.kind] && KIND_INFO[ev.kind].flag;
+        return `<div class="plan-card" style="border-left-color:${s.color}">
+          <button class="btn-delete" onclick="deleteSingle(${ev.id})">✕</button>
+          <span class="plan-subj" style="background:${s.color}">${s.name}</span>
+          <div class="plan-title">${flag?'⚑ ':''}${ev.title}</div>
+          <div class="plan-sub">${KIND_INFO[ev.kind]?KIND_INFO[ev.kind].label:'일정'} · ${fmt(d)}</div>
+          <label class="task${isDone?' done':''}" style="margin-top:9px;border-left-color:${s.color}">
+            <input type="checkbox" ${isDone?'checked':''} onchange="quickToggle('${itemKey}', this.checked)">
+            <div class="task-label"><strong>완료 체크</strong><span class="task-date">${PRI[ev.priority||'medium']} · ${ddayLabel(dday(d))}${memos[itemKey]?' · 📝':''}</span></div>
+          </label>
+        </div>`;
+      }).join('');
+
+      const combined = planHtml +
+        (singleHtml ? `<h3 style="font-family:Georgia,serif;font-size:14px;margin:14px 0 8px;border-bottom:2px solid var(--ink);padding-bottom:4px;">단일 일정</h3>` + singleHtml : '');
+      document.getElementById('plan-list').innerHTML = combined || '<p class="empty-msg">+ 추가 버튼으로 첫 일정을 등록해 주세요.</p>';
+    }
+
+    // ---------- Detail ----------
+    function openDetail(itemKey) {
+      const meta = detailMeta[itemKey];
+      if (!meta) return;
+      currentDetailKey = itemKey;
+      const s = subj(meta.subjectId);
+      const chip = document.getElementById('detailChip');
+      chip.textContent = s.name + ' · ' + meta.step;
+      chip.style.background = meta.flag ? 'var(--exam)' : s.color;
+      document.getElementById('detailTitle').textContent = (meta.flag ? '⚑ ' : '') + meta.title;
+      document.getElementById('detailSub').textContent = fmt(meta.date) + ' · ' + ddayLabel(dday(meta.date)) + ' · ' + PRI[meta.priority];
+      document.getElementById('detailDone').checked = !!doneMap[itemKey];
+      document.getElementById('detailMemo').value = memos[itemKey] || '';
+      document.getElementById('detailModal').classList.add('active');
+    }
+
+    function detailToggleDone() {
+      if (!currentDetailKey) return;
+      doneMap[currentDetailKey] = document.getElementById('detailDone').checked;
+      saveData();
+      renderCalendar(); renderToday(); renderList();
+    }
+
+    function closeDetail() {
+      if (currentDetailKey) {
+        const memo = document.getElementById('detailMemo').value.trim();
+        if (memo) memos[currentDetailKey] = memo; else delete memos[currentDetailKey];
+        saveData();
+        renderCalendar(); renderToday(); renderList();
+      }
+      currentDetailKey = null;
+      document.getElementById('detailModal').classList.remove('active');
+    }
+
+    // ---------- Delete ----------
+    function deletePlan(id) {
+      if (confirm('이 세트 전체를 삭제할까요?')) {
+        plans = plans.filter(p => p.id !== id);
+        Object.keys(doneMap).forEach(k => { if (k.startsWith(id + '-')) delete doneMap[k]; });
+        Object.keys(memos).forEach(k => { if (k.startsWith(id + '-')) delete memos[k]; });
+        saveData(); renderAll();
+      }
+    }
+    function deleteSingle(id) {
+      if (confirm('정말 삭제하시겠어요?')) {
+        singles = singles.filter(ev => ev.id !== id);
+        delete doneMap['ev-' + id]; delete memos['ev-' + id];
+        saveData(); renderAll();
+      }
+    }
+
+    // ---------- Add form ----------
+    function renderSubjectSelect() {
+      document.getElementById('subjectInput').innerHTML =
+        subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    }
+
+    function showForm() { document.getElementById('modal').classList.add('active'); }
+    function hideForm() {
+      document.getElementById('modal').classList.remove('active');
+      document.getElementById('titleInput').value = '';
+      document.getElementById('dateInput').value = '';
+      document.getElementById('priorityInput').value = 'medium';
+      document.getElementById('modeInput').value = 'brief';
+      onModeChange();
+    }
+
+    function onModeChange() {
+      const mode = document.getElementById('modeInput').value;
+      document.getElementById('kindGroup').style.display = mode === 'single' ? 'block' : 'none';
+      document.getElementById('dateLabel').textContent =
+        mode === 'exam' ? '시험일' : mode === 'brief' ? '제출 마감일' : '날짜';
+      document.getElementById('titleLabel').textContent =
+        mode === 'single' ? '제목' : '제목 (판례명·시험명)';
+    }
+
+    function addItem(e) {
+      e.preventDefault();
+      const mode = document.getElementById('modeInput').value;
+      const subjectId = document.getElementById('subjectInput').value;
+      const title = document.getElementById('titleInput').value.trim();
+      const dateVal = document.getElementById('dateInput').value;
+      const priority = document.getElementById('priorityInput').value;
+      if (!title || !dateVal || !subjectId) return;
+
+      if (mode === 'single') {
+        singles.push({ id: Date.now(), subjectId, title, date: dateVal, kind: document.getElementById('kindInput').value, priority });
+      } else {
+        plans.push({ id: Date.now(), subjectId, title, dueDate: dateVal, planType: mode, priority });
+      }
+      saveData(); renderAll(); hideForm();
+    }
+
+    // ---------- Subject manager ----------
+    function showSubjects() { renderSubjModal(); document.getElementById('subjModal').classList.add('active'); }
+    function hideSubjects() { document.getElementById('subjModal').classList.remove('active'); }
+
+    function renderSubjModal() {
+      document.getElementById('subjList').innerHTML = subjects.map(s =>
+        `<div class="subj-row">
+          <span class="subj-dot" style="background:${s.color}"></span>
+          <span class="subj-name">${s.name}</span>
+          <button class="subj-del" onclick="deleteSubject('${s.id}')">✕</button>
+        </div>`).join('');
+      const used = subjects.map(s => s.color);
+      selectedColor = PALETTE.find(c => !used.includes(c)) || PALETTE[0];
+      document.getElementById('palette').innerHTML = PALETTE.map(c =>
+        `<span class="swatch${c===selectedColor?' sel':''}" style="background:${c}" onclick="pickColor('${c}', this)"></span>`).join('');
+    }
+
+    function pickColor(c, el) {
+      selectedColor = c;
+      document.querySelectorAll('.swatch').forEach(sw => sw.classList.remove('sel'));
+      el.classList.add('sel');
+    }
+
+    function addSubject() {
+      const name = document.getElementById('newSubjName').value.trim();
+      if (!name) return;
+      subjects.push({ id: 's' + Date.now(), name, color: selectedColor });
+      document.getElementById('newSubjName').value = '';
+      saveData(); renderAll(); renderSubjModal();
+    }
+
+    function deleteSubject(id) {
+      const inUse = plans.some(p => p.subjectId === id) || singles.some(ev => ev.subjectId === id);
+      if (inUse) { alert('이 과목에 등록된 일정이 있어요. 일정을 먼저 삭제해 주세요.'); return; }
+      if (confirm('과목을 삭제할까요?')) {
+        subjects = subjects.filter(s => s.id !== id);
+        saveData(); renderAll(); renderSubjModal();
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
