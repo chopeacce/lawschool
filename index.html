@@ -347,6 +347,14 @@
         완료 (체크하면 캘린더에서 흐리게 표시돼요)
       </label>
       <div class="form-group">
+        <label>날짜 변경</label>
+        <input type="date" id="detailDate">
+        <button type="button" id="detailDateReset" onclick="resetDetailDate()"
+          style="display:none;margin-top:6px;background:transparent;border:none;color:var(--soft);font-size:12px;cursor:pointer;text-decoration:underline;padding:2px 0;">
+          ↺ 자동 배정 날짜로 되돌리기
+        </button>
+      </div>
+      <div class="form-group">
         <label>메모</label>
         <textarea id="detailMemo" placeholder="IRAC 메모 — Issue / Rule / Application / Conclusion, 교수님 코멘트, 페이지 범위 등"></textarea>
       </div>
@@ -413,6 +421,7 @@
     let singles = [];      // 단일 일정
     let doneMap = {};
     let memos = {};
+    let overrides = {};   // 자동 배정 단계의 수동 변경 날짜 { itemKey: 'YYYY-MM-DD' }
     let detailMeta = {};
     let currentDetailKey = null;
     let currentDate = new Date();
@@ -425,7 +434,8 @@
       SINGLES: 'lawdocket-singles',
       DONE: 'lawdocket-done',
       MEMOS: 'lawdocket-memos',
-      SET: 'lawdocket-settings'
+      SET: 'lawdocket-settings',
+      OVR: 'lawdocket-overrides'
     };
 
     const PALETTE = ['#1F6FB2','#B23A48','#2E7D5B','#7A4FA3','#B07C2A','#0E8A8A','#C2603D','#5B6C8F','#8A5A83','#4B7F52','#A8323E','#3D6B99'];
@@ -482,6 +492,7 @@
       doneMap = JSON.parse(localStorage.getItem(K.DONE) || '{}');
       memos = JSON.parse(localStorage.getItem(K.MEMOS) || '{}');
       settings = Object.assign(settings, JSON.parse(localStorage.getItem(K.SET) || '{}'));
+      overrides = JSON.parse(localStorage.getItem(K.OVR) || '{}');
 
       if (!plans) {
         // 첫 실행 예시 데이터 — 삭제하고 실제 일정으로 교체 가능
@@ -505,6 +516,7 @@
       localStorage.setItem(K.DONE, JSON.stringify(doneMap));
       localStorage.setItem(K.MEMOS, JSON.stringify(memos));
       localStorage.setItem(K.SET, JSON.stringify(settings));
+      localStorage.setItem(K.OVR, JSON.stringify(overrides));
     }
 
     // ---------- Tabs ----------
@@ -533,9 +545,15 @@
       plans.forEach(p => {
         const steps = PLAN_STEPS[p.planType] || [];
         steps.forEach(st => {
+          const itemKey = p.id + '-' + st.key;
+          const autoDate = addDays(p.dueDate, st.off);
+          const date = overrides[itemKey] ? new Date(overrides[itemKey] + 'T00:00:00') : autoDate;
           items.push({
-            itemKey: p.id + '-' + st.key,
-            date: addDays(p.dueDate, st.off),
+            itemKey: itemKey,
+            date: date,
+            autoDate: autoDate,
+            moved: !!overrides[itemKey],
+            src: 'plan',
             subjectId: p.subjectId,
             title: p.title,
             step: st.label,
@@ -549,6 +567,8 @@
         items.push({
           itemKey: 'ev-' + ev.id,
           date: new Date(ev.date + 'T00:00:00'),
+          src: 'single',
+          singleId: ev.id,
           subjectId: ev.subjectId,
           title: ev.title,
           step: KIND_INFO[ev.kind] ? KIND_INFO[ev.kind].label : '일정',
@@ -718,11 +738,12 @@
           const itemKey = p.id + '-' + st.key;
           const isDone = doneMap[itemKey];
           const memoMark = memos[itemKey] ? ' 📝' : '';
-          const d = addDays(p.dueDate, st.off);
+          const d = overrides[itemKey] ? new Date(overrides[itemKey] + 'T00:00:00') : addDays(p.dueDate, st.off);
+          const movedMark = overrides[itemKey] ? ' 📌' : '';
           const dateStr = d.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
           return `<label class="task${isDone?' done':''}${KIND_INFO[st.kind].flag?' flagged':''}" style="border-left-color:${KIND_INFO[st.kind].flag?'':s.color}">
             <input type="checkbox" ${isDone?'checked':''} onchange="quickToggle('${itemKey}', this.checked)">
-            <div class="task-label"><strong>${KIND_INFO[st.kind].flag?'⚑ ':''}${st.label}</strong><span class="task-date">${dateStr}${memoMark}</span></div>
+            <div class="task-label"><strong>${KIND_INFO[st.kind].flag?'⚑ ':''}${st.label}</strong><span class="task-date">${dateStr}${movedMark}${memoMark}</span></div>
           </label>`;
         }).join('');
         const due = new Date(p.dueDate + 'T00:00:00');
@@ -770,7 +791,11 @@
       chip.textContent = s.name + ' · ' + meta.step;
       chip.style.background = meta.flag ? 'var(--exam)' : s.color;
       document.getElementById('detailTitle').textContent = (meta.flag ? '⚑ ' : '') + meta.title;
-      document.getElementById('detailSub').textContent = fmt(meta.date) + ' · ' + ddayLabel(dday(meta.date)) + ' · ' + PRI[meta.priority];
+      document.getElementById('detailSub').textContent =
+        fmt(meta.date) + ' · ' + ddayLabel(dday(meta.date)) + ' · ' + PRI[meta.priority] + (meta.moved ? ' · 📌 수동 변경됨' : '');
+      document.getElementById('detailDate').value = ymd(meta.date);
+      document.getElementById('detailDateReset').style.display =
+        (meta.src === 'plan' && meta.moved) ? 'block' : 'none';
       document.getElementById('detailDone').checked = !!doneMap[itemKey];
       document.getElementById('detailMemo').value = memos[itemKey] || '';
       document.getElementById('detailModal').classList.add('active');
@@ -785,13 +810,33 @@
 
     function closeDetail() {
       if (currentDetailKey) {
+        const meta = detailMeta[currentDetailKey];
         const memo = document.getElementById('detailMemo').value.trim();
         if (memo) memos[currentDetailKey] = memo; else delete memos[currentDetailKey];
+
+        // 날짜 변경 반영
+        const newDate = document.getElementById('detailDate').value;
+        if (meta && newDate && newDate !== ymd(meta.date)) {
+          if (meta.src === 'single') {
+            const ev = singles.find(x => x.id === meta.singleId);
+            if (ev) ev.date = newDate;
+          } else if (meta.src === 'plan') {
+            if (newDate === ymd(meta.autoDate)) delete overrides[currentDetailKey];
+            else overrides[currentDetailKey] = newDate;
+          }
+        }
         saveData();
-        renderCalendar(); renderToday(); renderList(); renderBanner();
+        renderAll();
       }
       currentDetailKey = null;
       document.getElementById('detailModal').classList.remove('active');
+    }
+
+    function resetDetailDate() {
+      const meta = detailMeta[currentDetailKey];
+      if (!meta || meta.src !== 'plan') return;
+      document.getElementById('detailDate').value = ymd(meta.autoDate);
+      document.getElementById('detailDateReset').style.display = 'none';
     }
 
     // ---------- Delete ----------
@@ -800,6 +845,7 @@
         plans = plans.filter(p => p.id !== id);
         Object.keys(doneMap).forEach(k => { if (k.startsWith(id + '-')) delete doneMap[k]; });
         Object.keys(memos).forEach(k => { if (k.startsWith(id + '-')) delete memos[k]; });
+        Object.keys(overrides).forEach(k => { if (k.startsWith(id + '-')) delete overrides[k]; });
         saveData(); renderAll();
       }
     }
