@@ -279,6 +279,10 @@
 
       <!-- List Tab -->
       <div id="list" class="tab-content">
+        <div class="form-group" style="margin-bottom:12px;">
+          <input type="text" id="searchInput" oninput="renderList()" placeholder="🔍 일정·판례·과목·메모 검색"
+            style="width:100%;padding:11px;border:1px solid var(--line);border-radius:6px;font-size:16px;font-family:inherit;background:#fff;-webkit-user-select:text;user-select:text;">
+        </div>
         <div id="plan-list"></div>
       </div>
     </div>
@@ -840,6 +844,30 @@
 
     // ---------- List ----------
     function renderList() {
+      // 검색 모드: 검색어가 있으면 전체 일정에서 통합 검색
+      const qEl = document.getElementById('searchInput');
+      const q = (qEl && qEl.value ? qEl.value : '').trim().toLowerCase();
+      if (q) {
+        const hits = allItems().filter(it => {
+          const hay = [it.title, it.step, subj(it.subjectId).name, memos[it.itemKey] || ''].join(' ').toLowerCase();
+          return hay.includes(q);
+        }).sort((a,b) => a.date - b.date || timeOrd(a) - timeOrd(b));
+        hits.forEach(it => { detailMeta[it.itemKey] = it; });
+        document.getElementById('plan-list').innerHTML = hits.length
+          ? '<p style="font-size:11px;color:var(--soft);margin-bottom:8px;">검색 결과 ' + hits.length + '건</p>' +
+            hits.map(it => {
+              const s = subj(it.subjectId);
+              const dateStr = it.date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
+              return '<div class="todo-row' + (doneMap[it.itemKey] ? ' done' : '') + '" style="border-left-color:' + (it.flag ? 'var(--exam)' : s.color) + '" onclick="openDetail(\'' + it.itemKey + '\')">' +
+                '<div class="todo-main">' +
+                '<div class="todo-title">' + (it.flag ? '⚑ ' : '') + (it.time ? it.time + ' · ' : '') + it.title + '</div>' +
+                '<div class="todo-sub">' + s.name + ' · ' + it.step + (memos[it.itemKey] ? ' · 📝' : '') + '</div>' +
+                '</div><span class="dbadge">' + dateStr + '</span></div>';
+            }).join('')
+          : '<p class="empty-msg">"' + q + '" 검색 결과가 없어요</p>';
+        return;
+      }
+
       const planHtml = plans.slice().sort((a,b) => a.dueDate.localeCompare(b.dueDate)).map(p => {
         const s = subj(p.subjectId);
         const steps = PLAN_STEPS[p.planType] || [];
