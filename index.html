@@ -393,6 +393,8 @@
         <textarea id="detailMemo" placeholder="IRAC 메모 — Issue / Rule / Application / Conclusion, 교수님 코멘트, 페이지 범위 등"></textarea>
       </div>
       <div class="form-actions">
+        <button type="button" class="btn" onclick="deleteFromDetail()"
+          style="flex:0.6;background:#fff;border:1.5px solid var(--exam);color:var(--exam);">🗑 삭제</button>
         <button type="button" class="btn btn-primary" onclick="closeDetail()">저장하고 닫기</button>
       </div>
     </div>
@@ -980,6 +982,28 @@
       if (!meta || meta.src !== 'plan') return;
       document.getElementById('detailDate').value = ymd(meta.autoDate);
       document.getElementById('detailDateReset').style.display = 'none';
+    }
+
+    function deleteFromDetail() {
+      const meta = detailMeta[currentDetailKey];
+      if (!meta) return;
+      if (meta.src === 'single') {
+        if (!confirm('이 일정을 삭제할까요?')) return;
+        singles = singles.filter(ev => ev.id !== meta.singleId);
+        delete doneMap[currentDetailKey]; delete memos[currentDetailKey]; delete times[currentDetailKey];
+      } else {
+        const p = plans.find(x => x.id === meta.planId);
+        const setName = p && p.planType === 'exam' ? 'Finals 세트' : 'Case Brief 세트';
+        if (!confirm('이 일정은 자동 배정 ' + setName + '의 한 단계예요.\n세트 전체(모든 단계)가 함께 삭제됩니다. 삭제할까요?')) return;
+        plans = plans.filter(x => x.id !== meta.planId);
+        const pre = meta.planId + '-';
+        [doneMap, memos, overrides, times].forEach(map => {
+          Object.keys(map).forEach(k => { if (k.startsWith(pre)) delete map[k]; });
+        });
+      }
+      currentDetailKey = null; // 저장 로직 건너뛰고 바로 닫기
+      document.getElementById('detailModal').classList.remove('active');
+      saveData(); renderAll();
     }
 
     // ---------- Delete ----------
