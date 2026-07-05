@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lawdocket-v9';
+const CACHE_NAME = 'lawdocket-v10';
 const ASSETS = [
   './',
   './index.html',
@@ -35,5 +35,16 @@ self.addEventListener('fetch', event => {
         return response;
       })
       .catch(() => caches.match(event.request))
+  );
+});
+
+// 알림 탭 시 앱 열기/포커스
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      if (list.length) return list[0].focus();
+      return clients.openWindow('./index.html');
+    })
   );
 });
