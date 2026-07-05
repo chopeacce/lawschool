@@ -43,7 +43,7 @@
       border-bottom: 3px double var(--ink); background: var(--paper);
       flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; gap: 8px;
     }
-    .header-title h1 { font-family: Georgia, 'Noto Serif KR', serif; font-size: 20px; font-weight: 700; margin-bottom: 3px; }
+    .header-title h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 3px; }
     .header-title p { font-size: 11px; color: var(--soft); letter-spacing: 0.06em; }
     .header-btns { display: flex; gap: 6px; flex-shrink: 0; }
     .btn-add, .btn-subj {
@@ -88,7 +88,7 @@
 
     /* Calendar */
     .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-    .calendar-header h2 { font-family: Georgia, serif; font-size: 18px; letter-spacing: 0.02em; }
+    .calendar-header h2 { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
     .nav-btn { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: 14px; color: var(--ink); }
     .calendar-grid {
       display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px;
@@ -116,7 +116,7 @@
 
     /* 캘린더 하단 위젯 */
     .cal-sec { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px; margin-top: 12px; box-shadow: 0 1px 6px rgba(28,39,51,0.05); }
-    .cal-sec-head { display: flex; justify-content: space-between; align-items: baseline; font-family: Georgia, serif; font-size: 13.5px; font-weight: 700; margin-bottom: 9px; }
+    .cal-sec-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 9px; }
     .cal-sec-head b { font-variant-numeric: tabular-nums; }
     .pbar { height: 8px; background: #EFECE4; border-radius: 99px; overflow: hidden; }
     .pfill { height: 100%; background: var(--ink); border-radius: 99px; transition: width 0.3s ease; }
@@ -127,7 +127,7 @@
     .up-date { font-size: 10.5px; color: var(--soft); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 
     /* Today tab */
-    .today-sec h3 { font-family: Georgia, serif; font-size: 14px; margin: 6px 0 8px; border-bottom: 2px solid var(--ink); padding-bottom: 4px; }
+    .today-sec h3 { font-size: 13.5px; font-weight: 800; letter-spacing: -0.01em; margin: 6px 0 8px; border-bottom: 2px solid var(--ink); padding-bottom: 4px; }
     .todo-row {
       display: flex; align-items: flex-start; gap: 8px; background: #fff;
       border: 1px solid var(--line); border-left-width: 4px; border-radius: 6px;
@@ -184,7 +184,7 @@
       width: 100%; max-height: 88vh; max-height: 88dvh; /* 키보드가 올라오면 dvh가 줄어들어 버튼이 가려지지 않음 */
       overflow-y: auto; -webkit-overflow-scrolling: touch;
     }
-    .modal h3 { font-family: Georgia, serif; font-size: 17px; font-weight: 700; margin-bottom: 14px; }
+    .modal h3 { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 14px; }
     .form-group { margin-bottom: 13px; }
     .form-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; }
     .form-group input, .form-group select, .form-group textarea {
@@ -456,6 +456,20 @@
         · 알림 기준일은 위 배너 설정을 그대로 따라요.<br>
         · 앱이 닫힌 상태의 푸시는 별도 서버가 필요해 이 버전은 지원하지 않아요.
       </p>
+      <div style="border-top:1px solid var(--line);margin:14px 0 12px;"></div>
+      <h3 style="font-size:15px;">🎨 배경 컬러</h3>
+      <div class="form-group">
+        <label>탭하면 바로 적용돼요</label>
+        <div class="palette" id="bgPalette"></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap;">
+          <input type="color" id="bgCustom" value="#FBFAF7" onchange="pickBg(this.value)"
+            style="width:52px;height:36px;border:1px solid var(--line);border-radius:6px;padding:2px;background:#fff;cursor:pointer;">
+          <span style="font-size:12px;color:var(--soft);">← 직접 선택</span>
+          <button type="button" onclick="pickBg('#FBFAF7')"
+            style="margin-left:auto;background:#fff;border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink);">기본값 복원</button>
+        </div>
+        <p style="font-size:11px;color:var(--soft);margin-top:6px;">너무 어두운 색은 글자가 안 보일 수 있어요 — 밝은 톤을 추천해요.</p>
+      </div>
       <div class="form-actions">
         <button type="button" class="btn btn-secondary" onclick="hideSettings()">닫기</button>
         <button type="button" class="btn btn-primary" onclick="saveSettings()">저장</button>
@@ -501,7 +515,7 @@
     let currentDetailKey = null;
     let currentDate = new Date();
     let selectedColor = null;
-    let settings = { bannerOn: true, bannerDays: 3, bannerOverdue: true, dismissedOn: '', notifyOn: false, notifiedOn: '' };
+    let settings = { bannerOn: true, bannerDays: 3, bannerOverdue: true, dismissedOn: '', notifyOn: false, notifiedOn: '', bgColor: '#FBFAF7' };
 
     const K = {
       SUBJ: 'lawdocket-subjects',
@@ -552,6 +566,7 @@
 
     function init() {
       loadData();
+      applyTheme();
       renderAll();
       registerServiceWorker();
       maybeNotify();
@@ -730,7 +745,35 @@
       if (btn) switchTab('today', btn);
     }
 
+    // ---------- 배경 컬러 ----------
+    const BG_PALETTE = ['#FBFAF7', '#FFFFFF', '#F3EFE6', '#FFF6E9', '#EEF2F5', '#EAF0EC', '#F6EEF0', '#EFEAF5'];
+
+    function applyTheme() {
+      const c = settings.bgColor || '#FBFAF7';
+      if (document.documentElement && document.documentElement.style && document.documentElement.style.setProperty) {
+        document.documentElement.style.setProperty('--paper', c);
+      }
+      if (document.querySelector) {
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', c);
+      }
+    }
+
+    function renderBgPalette() {
+      const cur = settings.bgColor || '#FBFAF7';
+      document.getElementById('bgPalette').innerHTML = BG_PALETTE.map(c =>
+        '<span class="swatch' + (c === cur ? ' sel' : '') + '" style="background:' + c + ';box-shadow:inset 0 0 0 1px var(--line);" onclick="pickBg(\'' + c + '\')"></span>').join('');
+      const custom = document.getElementById('bgCustom');
+      if (custom) custom.value = cur;
+    }
+
+    function pickBg(c) {
+      settings.bgColor = c;
+      applyTheme(); saveData(); renderBgPalette();
+    }
+
     function showSettings() {
+      renderBgPalette();
       document.getElementById('setBannerOn').checked = settings.bannerOn;
       document.getElementById('setBannerDays').value = String(settings.bannerDays);
       document.getElementById('setBannerOverdue').checked = settings.bannerOverdue;
@@ -987,7 +1030,7 @@
       }).join('');
 
       const combined = planHtml +
-        (singleHtml ? `<h3 style="font-family:Georgia,serif;font-size:14px;margin:14px 0 8px;border-bottom:2px solid var(--ink);padding-bottom:4px;">단일 일정</h3>` + singleHtml : '');
+        (singleHtml ? `<h3 style="font-size:13.5px;font-weight:800;margin:14px 0 8px;border-bottom:2px solid var(--ink);padding-bottom:4px;">단일 일정</h3>` + singleHtml : '');
       document.getElementById('plan-list').innerHTML = combined || '<p class="empty-msg">+ 추가 버튼으로 첫 일정을 등록해 주세요.</p>';
     }
 
