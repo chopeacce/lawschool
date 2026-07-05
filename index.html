@@ -322,6 +322,10 @@
           <input type="date" id="dateInput" required>
         </div>
         <div class="form-group">
+          <label id="timeLabel">시간 (선택)</label>
+          <input type="time" id="timeInput">
+        </div>
+        <div class="form-group">
           <label>우선순위 (긴급도 × 중요도)</label>
           <select id="priorityInput">
             <option value="high">🔴 긴급·중요</option>
@@ -377,6 +381,8 @@
       <div class="form-group">
         <label>날짜 변경</label>
         <input type="date" id="detailDate">
+        <label style="margin-top:10px;">시간 (선택 — 비우면 시간 없음)</label>
+        <input type="time" id="detailTime">
         <button type="button" id="detailDateReset" onclick="resetDetailDate()"
           style="display:none;margin-top:6px;background:transparent;border:none;color:var(--soft);font-size:12px;cursor:pointer;text-decoration:underline;padding:2px 0;">
           ↺ 자동 배정 날짜로 되돌리기
@@ -465,6 +471,7 @@
     let doneMap = {};
     let memos = {};
     let overrides = {};   // 자동 배정 단계의 수동 변경 날짜 { itemKey: 'YYYY-MM-DD' }
+    let times = {};       // 일정별 선택 시간 { itemKey: 'HH:MM' }
     let detailMeta = {};
     let currentDetailKey = null;
     let currentDate = new Date();
@@ -478,7 +485,8 @@
       DONE: 'lawdocket-done',
       MEMOS: 'lawdocket-memos',
       SET: 'lawdocket-settings',
-      OVR: 'lawdocket-overrides'
+      OVR: 'lawdocket-overrides',
+      TIMES: 'lawdocket-times'
     };
 
     const PALETTE = ['#1F6FB2','#B23A48','#2E7D5B','#7A4FA3','#B07C2A','#0E8A8A','#C2603D','#5B6C8F','#8A5A83','#4B7F52','#A8323E','#3D6B99'];
@@ -539,6 +547,7 @@
       memos = JSON.parse(localStorage.getItem(K.MEMOS) || '{}');
       settings = Object.assign(settings, JSON.parse(localStorage.getItem(K.SET) || '{}'));
       overrides = JSON.parse(localStorage.getItem(K.OVR) || '{}');
+      times = JSON.parse(localStorage.getItem(K.TIMES) || '{}');
 
       // 기존 설치본에 학교·기타 과목 1회 추가 (사용자가 삭제하면 다시 생기지 않음)
       if (!settings.etcAdded) {
@@ -571,6 +580,7 @@
       localStorage.setItem(K.MEMOS, JSON.stringify(memos));
       localStorage.setItem(K.SET, JSON.stringify(settings));
       localStorage.setItem(K.OVR, JSON.stringify(overrides));
+      localStorage.setItem(K.TIMES, JSON.stringify(times));
     }
 
     // ---------- Tabs ----------
@@ -591,6 +601,7 @@
     function dday(date) { return Math.round((date - today0()) / 86400000); }
     function ddayLabel(n) { return n === 0 ? 'D-DAY' : (n > 0 ? 'D-' + n : 'D+' + Math.abs(n)); }
     const PRI = { high: '🔴 긴급·중요', medium: '🟡 중요·비긴급', low: '🟢 여유' };
+    function timeOrd(it) { return it.time ? parseInt(it.time.replace(':',''), 10) : 2401; } // 시간 없으면 맨 뒤
     const PRI_ORD = { high: 0, medium: 1, low: 2 };
 
     // 모든 일정을 개별 아이템으로 펼치기
@@ -607,6 +618,7 @@
             date: date,
             autoDate: autoDate,
             moved: !!overrides[itemKey],
+            time: times[itemKey] || '',
             src: 'plan',
             planId: p.id,
             subjectId: p.subjectId,
@@ -622,6 +634,7 @@
         items.push({
           itemKey: 'ev-' + ev.id,
           date: new Date(ev.date + 'T00:00:00'),
+          time: times['ev-' + ev.id] || '',
           src: 'single',
           singleId: ev.id,
           subjectId: ev.subjectId,
@@ -767,7 +780,7 @@
       const todayStr = new Date().toDateString();
       for (let day = 1; day <= daysInMonth; day++) {
         const date = new Date(year, month, day);
-        const items = (dayMap[date.toDateString()] || []).sort((a,b) => (b.flag?1:0)-(a.flag?1:0) || PRI_ORD[a.priority]-PRI_ORD[b.priority]);
+        const items = (dayMap[date.toDateString()] || []).sort((a,b) => timeOrd(a) - timeOrd(b) || (b.flag?1:0)-(a.flag?1:0) || PRI_ORD[a.priority]-PRI_ORD[b.priority]);
         const hasFlag = items.some(it => it.flag && !doneMap[it.itemKey]);
         const itemsHtml = items.map(it => {
           const done = doneMap[it.itemKey] ? ' done' : '';
@@ -775,7 +788,7 @@
           const memoMark = memos[it.itemKey] ? ' 📝' : '';
           const flagMark = it.flag ? '⚑ ' : '';
           const bg = it.flag ? 'var(--exam)' : subj(it.subjectId).color;
-          return `<div class="day-item${hot}${done}" style="background:${bg}" onclick="openDetail('${it.itemKey}')">${flagMark}${it.title}${memoMark}</div>`;
+          return `<div class="day-item${hot}${done}" style="background:${bg}" onclick="openDetail('${it.itemKey}')">${flagMark}${it.time ? it.time + ' ' : ''}${it.title}${memoMark}</div>`;
         }).join('');
         const cls = ['day']; if (date.toDateString() === todayStr) cls.push('today'); if (hasFlag) cls.push('hotday');
         html += `<div class="${cls.join(' ')}"><div class="day-num">${day}</div>${itemsHtml ? `<div class="day-items">${itemsHtml}</div>` : ''}</div>`;
@@ -793,7 +806,7 @@
       const items = allItems();
       items.forEach(it => { detailMeta[it.itemKey] = it; });
 
-      const sorter = (a,b) => a.date - b.date || (b.flag?1:0)-(a.flag?1:0) || PRI_ORD[a.priority]-PRI_ORD[b.priority];
+      const sorter = (a,b) => a.date - b.date || timeOrd(a) - timeOrd(b) || (b.flag?1:0)-(a.flag?1:0) || PRI_ORD[a.priority]-PRI_ORD[b.priority];
       const todays = items.filter(it => dday(it.date) === 0).sort(sorter);
       const upcoming = items.filter(it => { const n = dday(it.date); return n >= 1 && n <= 7 && !doneMap[it.itemKey]; }).sort(sorter);
 
@@ -804,7 +817,7 @@
         return `<div class="todo-row${doneMap[it.itemKey]?' done':''}" style="border-left-color:${it.flag?'var(--exam)':s.color}" onclick="openDetail('${it.itemKey}')">
           <input type="checkbox" ${checked} onclick="event.stopPropagation()" onchange="quickToggle('${it.itemKey}', this.checked)">
           <div class="todo-main">
-            <div class="todo-title">${it.flag?'⚑ ':''}${it.title}</div>
+            <div class="todo-title">${it.flag?'⚑ ':''}${it.time ? it.time + ' · ' : ''}${it.title}</div>
             <div class="todo-sub">${s.name} · ${it.step} · ${PRI[it.priority]}${memos[it.itemKey]?' · 📝':''}</div>
           </div>
           <span class="dbadge${n<=0&&it.flag?' due':''}">${ddayLabel(n)}</span>
@@ -896,8 +909,9 @@
         if (ev) document.getElementById('detailKind').value = ev.kind;
       }
       document.getElementById('detailSub').textContent =
-        fmt(meta.date) + ' · ' + ddayLabel(dday(meta.date)) + ' · ' + PRI[meta.priority] + (meta.moved ? ' · 📌 수동 변경됨' : '');
+        fmt(meta.date) + (meta.time ? ' ' + meta.time : '') + ' · ' + ddayLabel(dday(meta.date)) + ' · ' + PRI[meta.priority] + (meta.moved ? ' · 📌 수동 변경됨' : '');
       document.getElementById('detailDate').value = ymd(meta.date);
+      document.getElementById('detailTime').value = meta.time || '';
       document.getElementById('detailDateReset').style.display =
         (meta.src === 'plan' && meta.moved) ? 'block' : 'none';
       document.getElementById('detailDone').checked = !!doneMap[itemKey];
@@ -939,6 +953,10 @@
           }
         }
 
+        // 시간 변경 반영 (비우면 삭제)
+        const newTime = document.getElementById('detailTime').value;
+        if (newTime) times[currentDetailKey] = newTime; else delete times[currentDetailKey];
+
         // 날짜 변경 반영
         const newDate = document.getElementById('detailDate').value;
         if (meta && newDate && newDate !== ymd(meta.date)) {
@@ -971,13 +989,14 @@
         Object.keys(doneMap).forEach(k => { if (k.startsWith(id + '-')) delete doneMap[k]; });
         Object.keys(memos).forEach(k => { if (k.startsWith(id + '-')) delete memos[k]; });
         Object.keys(overrides).forEach(k => { if (k.startsWith(id + '-')) delete overrides[k]; });
+        Object.keys(times).forEach(k => { if (k.startsWith(id + '-')) delete times[k]; });
         saveData(); renderAll();
       }
     }
     function deleteSingle(id) {
       if (confirm('정말 삭제하시겠어요?')) {
         singles = singles.filter(ev => ev.id !== id);
-        delete doneMap['ev-' + id]; delete memos['ev-' + id];
+        delete doneMap['ev-' + id]; delete memos['ev-' + id]; delete times['ev-' + id];
         saveData(); renderAll();
       }
     }
@@ -993,6 +1012,7 @@
       document.getElementById('modal').classList.remove('active');
       document.getElementById('titleInput').value = '';
       document.getElementById('dateInput').value = '';
+      document.getElementById('timeInput').value = '';
       document.getElementById('priorityInput').value = 'medium';
       document.getElementById('modeInput').value = 'brief';
       onModeChange();
@@ -1003,6 +1023,8 @@
       document.getElementById('kindGroup').style.display = mode === 'single' ? 'block' : 'none';
       document.getElementById('dateLabel').textContent =
         mode === 'exam' ? '시험일' : mode === 'brief' ? '제출 마감일' : '날짜';
+      document.getElementById('timeLabel').textContent =
+        mode === 'exam' ? '시험 시간 (선택)' : mode === 'brief' ? '마감 시간 (선택)' : '시간 (선택)';
       document.getElementById('titleLabel').textContent =
         mode === 'single' ? '제목' : '제목 (판례명·시험명)';
     }
@@ -1016,10 +1038,15 @@
       const priority = document.getElementById('priorityInput').value;
       if (!title || !dateVal || !subjectId) return;
 
+      const timeVal = document.getElementById('timeInput').value;
+      const newId = Date.now();
       if (mode === 'single') {
-        singles.push({ id: Date.now(), subjectId, title, date: dateVal, kind: document.getElementById('kindInput').value, priority });
+        singles.push({ id: newId, subjectId, title, date: dateVal, kind: document.getElementById('kindInput').value, priority });
+        if (timeVal) times['ev-' + newId] = timeVal;
       } else {
-        plans.push({ id: Date.now(), subjectId, title, dueDate: dateVal, planType: mode, priority });
+        plans.push({ id: newId, subjectId, title, dueDate: dateVal, planType: mode, priority });
+        const steps = PLAN_STEPS[mode];
+        if (timeVal) times[newId + '-' + steps[steps.length - 1].key] = timeVal; // 마감·시험 당일에 적용
       }
       saveData(); renderAll(); hideForm();
     }
