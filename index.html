@@ -58,12 +58,13 @@
       flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch;
       padding: 14px 14px calc(16px + var(--safe-bottom));
     }
-    .tab-nav { display: flex; gap: 6px; margin-bottom: 16px; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+    .tab-nav { display: flex; gap: 3px; margin-bottom: 14px; background: #EBE7DD; border-radius: 10px; padding: 3px; }
     .tab-btn {
-      flex: 1; background: transparent; border: 1px solid var(--line); border-radius: 6px;
-      padding: 8px 4px; font-size: 12.5px; font-weight: 600; color: var(--soft); cursor: pointer;
+      flex: 1; background: transparent; border: none; border-radius: 8px;
+      padding: 9px 4px; font-size: 12.5px; font-weight: 700; color: var(--soft); cursor: pointer;
+      transition: background 0.15s ease;
     }
-    .tab-btn.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+    .tab-btn.active { background: #fff; color: var(--ink); box-shadow: 0 1px 4px rgba(28,39,51,0.16); }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
@@ -87,17 +88,23 @@
 
     /* Calendar */
     .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-    .calendar-header h2 { font-family: Georgia, serif; font-size: 16px; }
+    .calendar-header h2 { font-family: Georgia, serif; font-size: 18px; letter-spacing: 0.02em; }
     .nav-btn { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: 14px; color: var(--ink); }
-    .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+    .calendar-grid {
+      display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px;
+      background: var(--line); border: 1px solid var(--line);
+      border-radius: 12px; overflow: hidden;
+      box-shadow: 0 1px 6px rgba(28,39,51,0.06);
+    }
     .weekday { text-align: center; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #fff; background: var(--ink); padding: 5px 0; }
     .weekday.wsun { color: #F5B7B1; } .weekday.wsat { color: #AED6F1; }
-    .day { min-height: 74px; min-width: 0; overflow: hidden; background: #fff; border: 1px solid var(--line); padding: 3px; border-radius: 3px; }
-    .day.empty { background: transparent; border-color: transparent; }
-    .day.today { outline: 2px solid var(--ink); outline-offset: -2px; }
+    .day { min-height: clamp(76px, 11dvh, 118px); min-width: 0; overflow: hidden; background: #fff; padding: 4px; cursor: pointer; }
+    .day:active { background: #F7F5F0; }
+    .day.empty { background: #F5F2EB; cursor: default; }
+    .day.today { box-shadow: inset 0 0 0 2px var(--ink); }
     .day.hotday { background: #FCF0EE; }
-    .day-num { font-size: 10.5px; font-weight: 700; margin-bottom: 2px; font-variant-numeric: tabular-nums; }
-    .day.today .day-num::after { content: ' 오늘'; font-size: 8.5px; color: var(--exam); }
+    .day-num { font-size: 10.5px; font-weight: 700; margin-bottom: 3px; font-variant-numeric: tabular-nums; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+    .day.today .day-num { background: var(--ink); color: #fff; }
     .day-items { display: flex; flex-direction: column; gap: 2px; }
     .day-item {
       font-size: 9px; line-height: 1.25; color: #fff; border-radius: 3px;
@@ -106,6 +113,18 @@
     }
     .day-item.hot { font-weight: 800; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.55); }
     .day-item.done { opacity: 0.38; text-decoration: line-through; }
+
+    /* 캘린더 하단 위젯 */
+    .cal-sec { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px; margin-top: 12px; box-shadow: 0 1px 6px rgba(28,39,51,0.05); }
+    .cal-sec-head { display: flex; justify-content: space-between; align-items: baseline; font-family: Georgia, serif; font-size: 13.5px; font-weight: 700; margin-bottom: 9px; }
+    .cal-sec-head b { font-variant-numeric: tabular-nums; }
+    .pbar { height: 8px; background: #EFECE4; border-radius: 99px; overflow: hidden; }
+    .pfill { height: 100%; background: var(--ink); border-radius: 99px; transition: width 0.3s ease; }
+    .up-row { display: flex; align-items: center; gap: 9px; padding: 8px 0; border-top: 1px dashed var(--line); cursor: pointer; }
+    .up-row.first { border-top: none; padding-top: 2px; }
+    .up-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .up-title { flex: 1; font-size: 12.5px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .up-date { font-size: 10.5px; color: var(--soft); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 
     /* Today tab */
     .today-sec h3 { font-family: Georgia, serif; font-size: 14px; margin: 6px 0 8px; border-bottom: 2px solid var(--ink); padding-bottom: 4px; }
@@ -213,9 +232,8 @@
       .tab-btn { font-size: 12px; padding: 7px 2px; }
       .legend span { font-size: 9px; padding: 2px 6px; }
       .calendar-grid { gap: 1px; }
-      .day { min-height: 62px; padding: 2px; border-radius: 2px; }
+      .day { min-height: clamp(66px, 10dvh, 104px); padding: 3px; }
       .day-num { font-size: 9.5px; }
-      .day.today .day-num::after { content: '·'; }
       .day-item { font-size: 8.5px; padding: 1.5px 3px; border-radius: 2px; }
       .calendar-header h2 { font-size: 14.5px; }
       .nav-btn { padding: 4px 10px; }
@@ -263,6 +281,7 @@
           <button class="nav-btn" onclick="nextMonth()">→</button>
         </div>
         <div class="calendar-grid" id="calendar-grid"></div>
+        <div id="cal-footer"></div>
       </div>
 
       <!-- Today Tab -->
@@ -537,6 +556,20 @@
       registerServiceWorker();
       maybeNotify();
       setInterval(maybeNotify, 30 * 60 * 1000); // 앱이 켜져 있는 동안 30분마다 확인 (날짜 넘어가면 재알림)
+
+      // 캘린더 좌우 스와이프로 월 이동
+      const swipeEl = document.getElementById('calendar');
+      if (swipeEl && swipeEl.addEventListener) {
+        let sx = 0, sy = 0;
+        swipeEl.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+        swipeEl.addEventListener('touchend', e => {
+          const dx = e.changedTouches[0].clientX - sx;
+          const dy = e.changedTouches[0].clientY - sy;
+          if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+            if (dx < 0) nextMonth(); else prevMonth();
+          }
+        }, { passive: true });
+      }
     }
 
     function registerServiceWorker() {
@@ -794,12 +827,52 @@
           const memoMark = memos[it.itemKey] ? ' 📝' : '';
           const flagMark = it.flag ? '⚑ ' : '';
           const bg = it.flag ? 'var(--exam)' : subj(it.subjectId).color;
-          return `<div class="day-item${hot}${done}" style="background:${bg}" onclick="openDetail('${it.itemKey}')">${flagMark}${it.time ? it.time + ' ' : ''}${it.title}${memoMark}</div>`;
+          return `<div class="day-item${hot}${done}" style="background:${bg}" onclick="event.stopPropagation();openDetail('${it.itemKey}')">${flagMark}${it.time ? it.time + ' ' : ''}${it.title}${memoMark}</div>`;
         }).join('');
         const cls = ['day']; if (date.toDateString() === todayStr) cls.push('today'); if (hasFlag) cls.push('hotday');
-        html += `<div class="${cls.join(' ')}"><div class="day-num">${day}</div>${itemsHtml ? `<div class="day-items">${itemsHtml}</div>` : ''}</div>`;
+        html += `<div class="${cls.join(' ')}" onclick="quickAdd('${ymd(date)}')"><div class="day-num">${day}</div>${itemsHtml ? `<div class="day-items">${itemsHtml}</div>` : ''}</div>`;
       }
       document.getElementById('calendar-grid').innerHTML = html;
+      renderCalFooter();
+    }
+
+    function renderCalFooter() {
+      const t0 = today0();
+      // 이번 주(일~토) 진행률
+      const ws = new Date(t0); ws.setDate(t0.getDate() - t0.getDay());
+      const we = new Date(ws); we.setDate(ws.getDate() + 6); we.setHours(23,59,59,999);
+      const wk = allItems().filter(it => it.date >= ws && it.date <= we);
+      const dn = wk.filter(it => doneMap[it.itemKey]).length;
+      const pct = wk.length ? Math.round(dn / wk.length * 100) : 0;
+
+      // 다가오는 마감 (14일 내, 미완료, 최대 3건)
+      const ups = allItems()
+        .filter(it => !doneMap[it.itemKey] && dday(it.date) >= 0 && dday(it.date) <= 14)
+        .sort((a,b) => a.date - b.date || timeOrd(a) - timeOrd(b)).slice(0, 3);
+      ups.forEach(it => { detailMeta[it.itemKey] = it; });
+
+      let fhtml = '';
+      if (wk.length) {
+        fhtml += '<div class="cal-sec"><div class="cal-sec-head"><span>이번 주 진행률</span><b>' + dn + ' / ' + wk.length + ' 완료</b></div>' +
+          '<div class="pbar"><div class="pfill" style="width:' + pct + '%"></div></div></div>';
+      }
+      fhtml += '<div class="cal-sec"><div class="cal-sec-head"><span>⚑ 다가오는 마감</span></div>' +
+        (ups.length ? ups.map((it, i) => {
+          const s = subj(it.subjectId);
+          return '<div class="up-row' + (i === 0 ? ' first' : '') + '" onclick="openDetail(\'' + it.itemKey + '\')">' +
+            '<span class="up-dot" style="background:' + (it.flag ? 'var(--exam)' : s.color) + '"></span>' +
+            '<span class="up-title">' + (it.flag ? '⚑ ' : '') + it.title + ' · ' + it.step + '</span>' +
+            '<span class="up-date">' + ddayLabel(dday(it.date)) + (it.time ? ' ' + it.time : '') + '</span></div>';
+        }).join('') : '<p class="empty-msg" style="padding:6px 0;">14일 내 마감이 없어요 ☕</p>') + '</div>';
+      document.getElementById('cal-footer').innerHTML = fhtml;
+    }
+
+    // 빈 날짜 칸 탭 → 그 날짜로 바로 일정 추가
+    function quickAdd(dateStr) {
+      document.getElementById('modeInput').value = 'single';
+      onModeChange();
+      document.getElementById('dateInput').value = dateStr;
+      showForm();
     }
 
     function prevMonth() { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); }
