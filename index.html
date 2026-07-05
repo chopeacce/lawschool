@@ -214,7 +214,8 @@
     .done-toggle input { width: 17px; height: 17px; accent-color: var(--ink); }
 
     /* Subject manager */
-    .subj-row { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; }
+    .subj-row { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; }
+    .subj-row:active { background: #F7F5F0; }
     .subj-dot { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; }
     .subj-name { flex: 1; font-size: 13px; font-weight: 600; }
     .subj-del { background: transparent; border: none; color: var(--soft); font-size: 14px; cursor: pointer; padding: 2px 6px; }
@@ -482,8 +483,10 @@
     <div class="modal">
       <h3>과목 관리</h3>
       <div id="subjList"></div>
-      <div class="form-group" style="margin-top:14px">
-        <label>새 과목 이름</label>
+      <p style="font-size:11.5px;color:var(--soft);margin:10px 0 0;">위 과목을 탭하면 이름·컬러 수정 모드로 전환돼요.</p>
+      <div class="form-group" style="margin-top:12px">
+        <label>과목 이름</label>
+        <div id="subjEditHint" style="display:none;font-size:12px;color:var(--exam);font-weight:600;margin-bottom:6px;"></div>
         <input type="text" id="newSubjName" placeholder="예: 형법">
       </div>
       <div class="form-group">
@@ -497,7 +500,7 @@
       </div>
       <div class="form-actions">
         <button type="button" class="btn btn-secondary" onclick="hideSubjects()">닫기</button>
-        <button type="button" class="btn btn-primary" onclick="addSubject()">과목 추가</button>
+        <button type="button" class="btn btn-primary" id="subjAddBtn" onclick="addSubject()">과목 추가</button>
       </div>
     </div>
   </div>
@@ -1223,18 +1226,46 @@
     function showSubjects() { renderSubjModal(); document.getElementById('subjModal').classList.add('active'); }
     function hideSubjects() { document.getElementById('subjModal').classList.remove('active'); }
 
+    let editingSubjId = null;
+
     function renderSubjModal() {
+      editingSubjId = null;
       document.getElementById('subjList').innerHTML = subjects.map(s =>
-        `<div class="subj-row">
+        `<div class="subj-row" onclick="editSubject('${s.id}')">
           <span class="subj-dot" style="background:${s.color}"></span>
           <span class="subj-name">${s.name}</span>
-          <button class="subj-del" onclick="deleteSubject('${s.id}')">✕</button>
+          <span style="font-size:11px;color:var(--soft);flex-shrink:0;">✎</span>
+          <button class="subj-del" onclick="event.stopPropagation();deleteSubject('${s.id}')">✕</button>
         </div>`).join('');
+      document.getElementById('newSubjName').value = '';
+      document.getElementById('subjEditHint').style.display = 'none';
+      document.getElementById('subjAddBtn').textContent = '과목 추가';
       const used = subjects.map(s => s.color);
       selectedColor = PALETTE.find(c => !used.includes(c)) || PALETTE[0];
+      renderPaletteSwatches();
+    }
+
+    function renderPaletteSwatches() {
       document.getElementById('palette').innerHTML = PALETTE.map(c =>
         `<span class="swatch${c===selectedColor?' sel':''}" style="background:${c}" onclick="pickColor('${c}', this)"></span>`).join('');
+      const cc = document.getElementById('customColor');
+      if (cc && selectedColor) cc.value = selectedColor;
     }
+
+    function editSubject(id) {
+      const s = subjects.find(x => x.id === id);
+      if (!s) return;
+      editingSubjId = id;
+      document.getElementById('newSubjName').value = s.name;
+      selectedColor = s.color;
+      renderPaletteSwatches();
+      const hint = document.getElementById('subjEditHint');
+      hint.style.display = 'block';
+      hint.innerHTML = '"' + s.name + '" 수정 중 · <a onclick="cancelSubjEdit()" style="text-decoration:underline;cursor:pointer;">취소</a>';
+      document.getElementById('subjAddBtn').textContent = '수정 저장';
+    }
+
+    function cancelSubjEdit() { renderSubjModal(); }
 
     function pickColor(c, el) {
       selectedColor = c;
@@ -1250,8 +1281,12 @@
     function addSubject() {
       const name = document.getElementById('newSubjName').value.trim();
       if (!name) return;
-      subjects.push({ id: 's' + Date.now(), name, color: selectedColor });
-      document.getElementById('newSubjName').value = '';
+      if (editingSubjId) {
+        const s = subjects.find(x => x.id === editingSubjId);
+        if (s) { s.name = name; s.color = selectedColor; }
+      } else {
+        subjects.push({ id: 's' + Date.now(), name, color: selectedColor });
+      }
       saveData(); renderAll(); renderSubjModal();
     }
 
