@@ -900,7 +900,6 @@
         const itemsHtml = items.map(it => {
           const done = doneMap[it.itemKey] ? ' done' : '';
           const hot = it.flag ? ' hot' : '';
-          const memoMark = memos[it.itemKey] ? ' 📝' : '';
           const flagMark = it.flag ? '⚑ ' : '';
           const bg = it.flag ? 'var(--exam)' : subj(it.subjectId).color;
           let seg = '';
@@ -994,7 +993,7 @@
           <input type="checkbox" ${checked} onclick="event.stopPropagation()" onchange="quickToggle('${it.itemKey}', this.checked)">
           <div class="todo-main">
             <div class="todo-title">${it.flag?'⚑ ':''}${it.time ? it.time + ' · ' : ''}${it.title}</div>
-            <div class="todo-sub">${s.name} · ${it.step}${range} · ${PRI[it.priority]}${memos[it.itemKey]?' · 📝':''}</div>
+            <div class="todo-sub">${s.name} · ${it.step}${range} · ${PRI[it.priority]}</div>
           </div>
           <span class="dbadge${n<=0&&it.flag?' due':''}">${badge}</span>
         </div>`;
@@ -1031,7 +1030,7 @@
               return '<div class="todo-row' + (doneMap[it.itemKey] ? ' done' : '') + '" style="border-left-color:' + (it.flag ? 'var(--exam)' : s.color) + '" onclick="openDetail(\'' + it.itemKey + '\')">' +
                 '<div class="todo-main">' +
                 '<div class="todo-title">' + (it.flag ? '⚑ ' : '') + (it.time ? it.time + ' · ' : '') + it.title + '</div>' +
-                '<div class="todo-sub">' + s.name + ' · ' + it.step + (memos[it.itemKey] ? ' · 📝' : '') + '</div>' +
+                '<div class="todo-sub">' + s.name + ' · ' + it.step + '</div>' +
                 '</div><span class="dbadge">' + dateStr + '</span></div>';
             }).join('')
           : '<p class="empty-msg">"' + q + '" 검색 결과가 없어요</p>';
@@ -1044,13 +1043,12 @@
         const taskHtml = steps.map(st => {
           const itemKey = p.id + '-' + st.key;
           const isDone = doneMap[itemKey];
-          const memoMark = memos[itemKey] ? ' 📝' : '';
           const d = overrides[itemKey] ? new Date(overrides[itemKey] + 'T00:00:00') : addDays(p.dueDate, st.off);
           const movedMark = overrides[itemKey] ? ' 📌' : '';
           const dateStr = d.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
           return `<label class="task${isDone?' done':''}${KIND_INFO[st.kind].flag?' flagged':''}" style="border-left-color:${KIND_INFO[st.kind].flag?'':s.color}">
             <input type="checkbox" ${isDone?'checked':''} onchange="quickToggle('${itemKey}', this.checked)">
-            <div class="task-label"><strong>${KIND_INFO[st.kind].flag?'⚑ ':''}${st.label}</strong><span class="task-date">${dateStr}${movedMark}${memoMark}</span></div>
+            <div class="task-label"><strong>${KIND_INFO[st.kind].flag?'⚑ ':''}${st.label}</strong><span class="task-date">${dateStr}${movedMark}</span></div>
           </label>`;
         }).join('');
         const due = new Date(p.dueDate + 'T00:00:00');
@@ -1078,7 +1076,7 @@
           <div class="plan-sub">${KIND_INFO[ev.kind]?KIND_INFO[ev.kind].label:'일정'} · ${fmt(d)}${ev.endDate ? ' ~ ' + fmt(new Date(ev.endDate + 'T00:00:00')) : ''}</div>
           <label class="task${isDone?' done':''}" style="margin-top:9px;border-left-color:${s.color}">
             <input type="checkbox" ${isDone?'checked':''} onchange="quickToggle('${itemKey}', this.checked)">
-            <div class="task-label"><strong>완료 체크</strong><span class="task-date">${PRI[ev.priority||'medium']} · ${ddayLabel(dday(d))}${memos[itemKey]?' · 📝':''}</span></div>
+            <div class="task-label"><strong>완료 체크</strong><span class="task-date">${PRI[ev.priority||'medium']} · ${ddayLabel(dday(d))}</span></div>
           </label>
         </div>`;
       }).join('');
