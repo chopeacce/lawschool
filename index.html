@@ -113,7 +113,9 @@
     }
     .day-item.hot { font-weight: 800; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.55); }
     /* 기간 일정: 칸 경계를 넘어 이어지는 컬러 바 */
-    .day-item.bar { -webkit-line-clamp: 1; white-space: nowrap; }
+    .day-item.bar { display: block; white-space: nowrap; overflow: visible; }
+    .day-item.bar-cap { position: relative; z-index: 2; } /* 제목이 이어지는 조각 위로 보이게 */
+    .bar-label { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: top; }
     .day-item.bar-r { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: -5px; }
     .day-item.bar-l { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -5px; }
     .day-item.done { opacity: 0.38; text-decoration: line-through; }
@@ -323,6 +325,7 @@
         <select id="modeInput" onchange="onModeChange()">
           <option value="brief" selected>Case Brief 세트 (리딩 → IRAC 초안 → 제출 자동 배정)</option>
           <option value="exam">Finals 세트 (아웃라인 → 모의답안 → 최종점검 → 시험)</option>
+          <option value="examonly">🚩 시험만 등록 (준비 단계 없이 시험일만)</option>
           <option value="single">단일 일정 (수업·리딩·과제 등)</option>
         </select>
       </div>
@@ -340,6 +343,7 @@
             <option value="study">👥 스터디</option>
             <option value="office">🕐 오피스아워</option>
             <option value="event">🏛 학교 행사 (OT·설명회 등)</option>
+            <option value="examday">🚩 시험 (Finals·중간고사)</option>
             <option value="etc">📌 기타</option>
           </select>
         </div>
@@ -397,6 +401,7 @@
           <option value="study">👥 스터디</option>
           <option value="office">🕐 오피스아워</option>
           <option value="event">🏛 학교 행사 (OT·설명회 등)</option>
+          <option value="examday">🚩 시험 (Finals·중간고사)</option>
           <option value="etc">📌 기타</option>
         </select>
       </div>
@@ -899,7 +904,7 @@
           const flagMark = it.flag ? '⚑ ' : '';
           const bg = it.flag ? 'var(--exam)' : subj(it.subjectId).color;
           let seg = '';
-          let label = `${flagMark}${it.time ? it.time + ' ' : ''}${it.title}${memoMark}`;
+          let label = `${flagMark}${it.time ? it.time + ' ' : ''}${it.title}`;
           if (it.endDate) {
             seg = ' bar';
             const isStart = it.cellDate.getTime() === it.date.getTime();
@@ -907,7 +912,14 @@
             const dow = it.cellDate.getDay();
             if (!isStart && dow !== 0) seg += ' bar-l';
             if (!isEnd && dow !== 6) seg += ' bar-r';
-            if (!isStart && dow !== 0) label = '&nbsp;'; // 제목은 시작일과 주 시작에만
+            if (!isStart && dow !== 0) {
+              label = '&nbsp;'; // 제목은 시작일과 주 시작에만
+            } else {
+              // 이번 주에 이어지는 칸 수만큼 제목 표시 폭 확장 (바 끝에서 말줄임)
+              const span = Math.min(Math.round((it.endDate - it.cellDate) / 86400000), 6 - dow) + 1;
+              seg += ' bar-cap';
+              label = '<span class="bar-label" style="max-width:calc(' + (span * 100) + '% + ' + ((span - 1) * 8) + 'px)">' + label + '</span>';
+            }
           }
           return `<div class="day-item${hot}${done}${seg}" style="background:${bg}" onclick="event.stopPropagation();openDetail('${it.itemKey}')">${label}</div>`;
         }).join('');
@@ -1248,11 +1260,11 @@
       document.getElementById('kindGroup').style.display = mode === 'single' ? 'block' : 'none';
       document.getElementById('endDateGroup').style.display = mode === 'single' ? 'block' : 'none';
       document.getElementById('dateLabel').textContent =
-        mode === 'exam' ? '시험일' : mode === 'brief' ? '제출 마감일' : '날짜';
+        (mode === 'exam' || mode === 'examonly') ? '시험일' : mode === 'brief' ? '제출 마감일' : '날짜';
       document.getElementById('timeLabel').textContent =
-        mode === 'exam' ? '시험 시간 (선택)' : mode === 'brief' ? '마감 시간 (선택)' : '시간 (선택)';
+        (mode === 'exam' || mode === 'examonly') ? '시험 시간 (선택)' : mode === 'brief' ? '마감 시간 (선택)' : '시간 (선택)';
       document.getElementById('titleLabel').textContent =
-        mode === 'single' ? '제목' : '제목 (판례명·시험명)';
+        mode === 'single' ? '제목' : mode === 'examonly' ? '시험명 (예: 계약법 중간고사)' : '제목 (판례명·시험명)';
     }
 
     function addItem(e) {
@@ -1266,7 +1278,10 @@
 
       const timeVal = document.getElementById('timeInput').value;
       const newId = Date.now();
-      if (mode === 'single') {
+      if (mode === 'examonly') {
+        singles.push({ id: newId, subjectId, title, date: dateVal, kind: 'examday', priority });
+        if (timeVal) times['ev-' + newId] = timeVal;
+      } else if (mode === 'single') {
         const single = { id: newId, subjectId, title, date: dateVal, kind: document.getElementById('kindInput').value, priority };
         const endVal = document.getElementById('endDateInput').value;
         if (endVal && endVal > dateVal) single.endDate = endVal;
