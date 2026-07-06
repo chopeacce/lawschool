@@ -349,6 +349,10 @@
           <label id="timeLabel">시간 (선택)</label>
           <input type="time" id="timeInput">
         </div>
+        <div class="form-group" id="endDateGroup" style="display:none">
+          <label>종료일 (선택 — 여러 날에 걸친 일정이면 지정)</label>
+          <input type="date" id="endDateInput">
+        </div>
         <div class="form-group">
           <label>우선순위 (긴급도 × 중요도)</label>
           <select id="priorityInput">
@@ -407,6 +411,10 @@
         <input type="date" id="detailDate">
         <label style="margin-top:10px;">시간 (선택 — 비우면 시간 없음)</label>
         <input type="time" id="detailTime">
+        <div id="detailEndWrap" style="display:none">
+          <label style="margin-top:10px;">종료일 (선택 — 비우면 하루 일정)</label>
+          <input type="date" id="detailEndDate">
+        </div>
         <button type="button" id="detailDateReset" onclick="resetDetailDate()"
           style="display:none;margin-top:6px;background:transparent;border:none;color:var(--soft);font-size:12px;cursor:pointer;text-decoration:underline;padding:2px 0;">
           ↺ 자동 배정 날짜로 되돌리기
@@ -688,9 +696,12 @@
         });
       });
       singles.forEach(ev => {
+        const start = new Date(ev.date + 'T00:00:00');
+        const end = ev.endDate ? new Date(ev.endDate + 'T00:00:00') : null;
         items.push({
           itemKey: 'ev-' + ev.id,
-          date: new Date(ev.date + 'T00:00:00'),
+          date: start,
+          endDate: end && end > start ? end : null,
           time: times['ev-' + ev.id] || '',
           src: 'single',
           singleId: ev.id,
@@ -850,10 +861,18 @@
       detailMeta = {};
       const dayMap = {};
       allItems().forEach(it => {
-        const key = it.date.toDateString();
-        if (!dayMap[key]) dayMap[key] = [];
-        dayMap[key].push(it);
         detailMeta[it.itemKey] = it;
+        const addTo = (d, cont) => {
+          const key = d.toDateString();
+          if (!dayMap[key]) dayMap[key] = [];
+          dayMap[key].push(cont ? Object.assign({}, it, { cont: true }) : it);
+        };
+        addTo(it.date, false);
+        if (it.endDate) {
+          const d = new Date(it.date);
+          d.setDate(d.getDate() + 1);
+          for (; d <= it.endDate; d.setDate(d.getDate() + 1)) addTo(new Date(d), true);
+        }
       });
 
       let html = '';
@@ -873,7 +892,7 @@
           const memoMark = memos[it.itemKey] ? ' 📝' : '';
           const flagMark = it.flag ? '⚑ ' : '';
           const bg = it.flag ? 'var(--exam)' : subj(it.subjectId).color;
-          return `<div class="day-item${hot}${done}" style="background:${bg}" onclick="event.stopPropagation();openDetail('${it.itemKey}')">${flagMark}${it.time ? it.time + ' ' : ''}${it.title}${memoMark}</div>`;
+          return `<div class="day-item${hot}${done}" style="background:${bg}" onclick="event.stopPropagation();openDetail('${it.itemKey}')">${flagMark}${it.cont ? '▸ ' : (it.time ? it.time + ' ' : '')}${it.title}${memoMark}</div>`;
         }).join('');
         const cls = ['day']; if (date.toDateString() === todayStr) cls.push('today'); if (hasFlag) cls.push('hotday');
         html += `<div class="${cls.join(' ')}" onclick="quickAdd('${ymd(date)}')"><div class="day-num">${day}</div>${itemsHtml ? `<div class="day-items">${itemsHtml}</div>` : ''}</div>`;
@@ -932,20 +951,23 @@
       items.forEach(it => { detailMeta[it.itemKey] = it; });
 
       const sorter = (a,b) => a.date - b.date || timeOrd(a) - timeOrd(b) || (b.flag?1:0)-(a.flag?1:0) || PRI_ORD[a.priority]-PRI_ORD[b.priority];
-      const todays = items.filter(it => dday(it.date) === 0).sort(sorter);
+      const todays = items.filter(it => dday(it.date) === 0 || (it.endDate && it.date <= t0 && t0 <= it.endDate)).sort(sorter);
       const upcoming = items.filter(it => { const n = dday(it.date); return n >= 1 && n <= 7 && !doneMap[it.itemKey]; }).sort(sorter);
 
       const row = it => {
         const s = subj(it.subjectId);
         const n = dday(it.date);
+        const ongoing = it.endDate && it.date <= t0 && t0 <= it.endDate && n < 0;
+        const badge = ongoing ? '진행 중' : ddayLabel(n);
+        const range = it.endDate ? ' · ~' + it.endDate.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) : '';
         const checked = doneMap[it.itemKey] ? 'checked' : '';
         return `<div class="todo-row${doneMap[it.itemKey]?' done':''}" style="border-left-color:${it.flag?'var(--exam)':s.color}" onclick="openDetail('${it.itemKey}')">
           <input type="checkbox" ${checked} onclick="event.stopPropagation()" onchange="quickToggle('${it.itemKey}', this.checked)">
           <div class="todo-main">
             <div class="todo-title">${it.flag?'⚑ ':''}${it.time ? it.time + ' · ' : ''}${it.title}</div>
-            <div class="todo-sub">${s.name} · ${it.step} · ${PRI[it.priority]}${memos[it.itemKey]?' · 📝':''}</div>
+            <div class="todo-sub">${s.name} · ${it.step}${range} · ${PRI[it.priority]}${memos[it.itemKey]?' · 📝':''}</div>
           </div>
-          <span class="dbadge${n<=0&&it.flag?' due':''}">${ddayLabel(n)}</span>
+          <span class="dbadge${n<=0&&it.flag?' due':''}">${badge}</span>
         </div>`;
       };
 
@@ -1024,7 +1046,7 @@
           <button class="btn-delete" onclick="deleteSingle(${ev.id})">✕</button>
           <span class="plan-subj" style="background:${s.color}">${s.name}</span>
           <div class="plan-title">${flag?'⚑ ':''}${ev.title}</div>
-          <div class="plan-sub">${KIND_INFO[ev.kind]?KIND_INFO[ev.kind].label:'일정'} · ${fmt(d)}</div>
+          <div class="plan-sub">${KIND_INFO[ev.kind]?KIND_INFO[ev.kind].label:'일정'} · ${fmt(d)}${ev.endDate ? ' ~ ' + fmt(new Date(ev.endDate + 'T00:00:00')) : ''}</div>
           <label class="task${isDone?' done':''}" style="margin-top:9px;border-left-color:${s.color}">
             <input type="checkbox" ${isDone?'checked':''} onchange="quickToggle('${itemKey}', this.checked)">
             <div class="task-label"><strong>완료 체크</strong><span class="task-date">${PRI[ev.priority||'medium']} · ${ddayLabel(dday(d))}${memos[itemKey]?' · 📝':''}</span></div>
@@ -1058,9 +1080,14 @@
         if (ev) document.getElementById('detailKind').value = ev.kind;
       }
       document.getElementById('detailSub').textContent =
-        fmt(meta.date) + (meta.time ? ' ' + meta.time : '') + ' · ' + ddayLabel(dday(meta.date)) + ' · ' + PRI[meta.priority] + (meta.moved ? ' · 📌 수동 변경됨' : '');
+        fmt(meta.date) + (meta.endDate ? ' ~ ' + fmt(meta.endDate) : '') + (meta.time ? ' ' + meta.time : '') + ' · ' + ddayLabel(dday(meta.date)) + ' · ' + PRI[meta.priority] + (meta.moved ? ' · 📌 수동 변경됨' : '');
       document.getElementById('detailDate').value = ymd(meta.date);
       document.getElementById('detailTime').value = meta.time || '';
+      document.getElementById('detailEndWrap').style.display = meta.src === 'single' ? 'block' : 'none';
+      if (meta.src === 'single') {
+        const ev0 = singles.find(x => x.id === meta.singleId);
+        document.getElementById('detailEndDate').value = (ev0 && ev0.endDate) ? ev0.endDate : '';
+      }
       document.getElementById('detailDateReset').style.display =
         (meta.src === 'plan' && meta.moved) ? 'block' : 'none';
       document.getElementById('detailDone').checked = !!doneMap[itemKey];
@@ -1115,6 +1142,15 @@
           } else if (meta.src === 'plan') {
             if (newDate === ymd(meta.autoDate)) delete overrides[currentDetailKey];
             else overrides[currentDetailKey] = newDate;
+          }
+        }
+
+        // 종료일 반영 (단일 일정, 시작일보다 뒤일 때만)
+        if (meta && meta.src === 'single') {
+          const ev = singles.find(x => x.id === meta.singleId);
+          if (ev) {
+            const endVal = document.getElementById('detailEndDate').value;
+            if (endVal && endVal > ev.date) ev.endDate = endVal; else delete ev.endDate;
           }
         }
         saveData();
@@ -1184,6 +1220,7 @@
       document.getElementById('titleInput').value = '';
       document.getElementById('dateInput').value = '';
       document.getElementById('timeInput').value = '';
+      document.getElementById('endDateInput').value = '';
       document.getElementById('priorityInput').value = 'medium';
       document.getElementById('modeInput').value = 'brief';
       onModeChange();
@@ -1192,6 +1229,7 @@
     function onModeChange() {
       const mode = document.getElementById('modeInput').value;
       document.getElementById('kindGroup').style.display = mode === 'single' ? 'block' : 'none';
+      document.getElementById('endDateGroup').style.display = mode === 'single' ? 'block' : 'none';
       document.getElementById('dateLabel').textContent =
         mode === 'exam' ? '시험일' : mode === 'brief' ? '제출 마감일' : '날짜';
       document.getElementById('timeLabel').textContent =
@@ -1212,7 +1250,10 @@
       const timeVal = document.getElementById('timeInput').value;
       const newId = Date.now();
       if (mode === 'single') {
-        singles.push({ id: newId, subjectId, title, date: dateVal, kind: document.getElementById('kindInput').value, priority });
+        const single = { id: newId, subjectId, title, date: dateVal, kind: document.getElementById('kindInput').value, priority };
+        const endVal = document.getElementById('endDateInput').value;
+        if (endVal && endVal > dateVal) single.endDate = endVal;
+        singles.push(single);
         if (timeVal) times['ev-' + newId] = timeVal;
       } else {
         plans.push({ id: newId, subjectId, title, dueDate: dateVal, planType: mode, priority });
