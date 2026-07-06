@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lawdocket-v17';
+const CACHE_NAME = 'lawdocket-v18';
 const ASSETS = [
   './',
   './index.html',
