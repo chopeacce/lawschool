@@ -98,7 +98,7 @@
     }
     .weekday { text-align: center; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #fff; background: var(--ink); padding: 5px 0; }
     .weekday.wsun { color: #F5B7B1; } .weekday.wsat { color: #AED6F1; }
-    .day { min-height: clamp(76px, 11dvh, 118px); min-width: 0; overflow: hidden; background: #fff; padding: 4px; cursor: pointer; }
+    .day { min-height: clamp(76px, 11dvh, 118px); min-width: 0; overflow: visible; background: #fff; padding: 4px; cursor: pointer; }
     .day:active { background: #F7F5F0; }
     .day.empty { background: #F5F2EB; cursor: default; }
     .day.today { box-shadow: inset 0 0 0 2px var(--ink); }
@@ -112,6 +112,12 @@
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
     }
     .day-item.hot { font-weight: 800; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.55); }
+    /* 기간 일정: 칸 경계를 넘어 이어지는 컬러 바 */
+    .day-item.bar { display: block; white-space: nowrap; overflow: visible; }
+    .day-item.bar-cap { position: relative; z-index: 2; } /* 제목이 이어지는 조각 위로 보이게 */
+    .bar-label { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: top; }
+    .day-item.bar-r { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: -5px; }
+    .day-item.bar-l { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -5px; }
     .day-item.done { opacity: 0.38; text-decoration: line-through; }
 
     /* 캘린더 하단 위젯 */
@@ -214,7 +220,8 @@
     .done-toggle input { width: 17px; height: 17px; accent-color: var(--ink); }
 
     /* Subject manager */
-    .subj-row { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; }
+    .subj-row { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; }
+    .subj-row:active { background: #F7F5F0; }
     .subj-dot { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; }
     .subj-name { flex: 1; font-size: 13px; font-weight: 600; }
     .subj-del { background: transparent; border: none; color: var(--soft); font-size: 14px; cursor: pointer; padding: 2px 6px; }
@@ -233,6 +240,8 @@
       .legend span { font-size: 9px; padding: 2px 6px; }
       .calendar-grid { gap: 1px; }
       .day { min-height: clamp(66px, 10dvh, 104px); padding: 3px; }
+      .day-item.bar-r { margin-right: -4px; }
+      .day-item.bar-l { margin-left: -4px; }
       .day-num { font-size: 9.5px; }
       .day-item { font-size: 8.5px; padding: 1.5px 3px; border-radius: 2px; }
       .calendar-header h2 { font-size: 14.5px; }
@@ -316,6 +325,7 @@
         <select id="modeInput" onchange="onModeChange()">
           <option value="brief" selected>Case Brief 세트 (리딩 → IRAC 초안 → 제출 자동 배정)</option>
           <option value="exam">Finals 세트 (아웃라인 → 모의답안 → 최종점검 → 시험)</option>
+          <option value="examonly">🚩 시험만 등록 (준비 단계 없이 시험일만)</option>
           <option value="single">단일 일정 (수업·리딩·과제 등)</option>
         </select>
       </div>
@@ -333,6 +343,7 @@
             <option value="study">👥 스터디</option>
             <option value="office">🕐 오피스아워</option>
             <option value="event">🏛 학교 행사 (OT·설명회 등)</option>
+            <option value="examday">🚩 시험 (Finals·중간고사)</option>
             <option value="etc">📌 기타</option>
           </select>
         </div>
@@ -347,6 +358,10 @@
         <div class="form-group">
           <label id="timeLabel">시간 (선택)</label>
           <input type="time" id="timeInput">
+        </div>
+        <div class="form-group" id="endDateGroup" style="display:none">
+          <label>종료일 (선택 — 여러 날에 걸친 일정이면 지정)</label>
+          <input type="date" id="endDateInput">
         </div>
         <div class="form-group">
           <label>우선순위 (긴급도 × 중요도)</label>
@@ -386,6 +401,7 @@
           <option value="study">👥 스터디</option>
           <option value="office">🕐 오피스아워</option>
           <option value="event">🏛 학교 행사 (OT·설명회 등)</option>
+          <option value="examday">🚩 시험 (Finals·중간고사)</option>
           <option value="etc">📌 기타</option>
         </select>
       </div>
@@ -406,6 +422,10 @@
         <input type="date" id="detailDate">
         <label style="margin-top:10px;">시간 (선택 — 비우면 시간 없음)</label>
         <input type="time" id="detailTime">
+        <div id="detailEndWrap" style="display:none">
+          <label style="margin-top:10px;">종료일 (선택 — 비우면 하루 일정)</label>
+          <input type="date" id="detailEndDate">
+        </div>
         <button type="button" id="detailDateReset" onclick="resetDetailDate()"
           style="display:none;margin-top:6px;background:transparent;border:none;color:var(--soft);font-size:12px;cursor:pointer;text-decoration:underline;padding:2px 0;">
           ↺ 자동 배정 날짜로 되돌리기
@@ -482,8 +502,10 @@
     <div class="modal">
       <h3>과목 관리</h3>
       <div id="subjList"></div>
-      <div class="form-group" style="margin-top:14px">
-        <label>새 과목 이름</label>
+      <p style="font-size:11.5px;color:var(--soft);margin:10px 0 0;">위 과목을 탭하면 이름·컬러 수정 모드로 전환돼요.</p>
+      <div class="form-group" style="margin-top:12px">
+        <label>과목 이름</label>
+        <div id="subjEditHint" style="display:none;font-size:12px;color:var(--exam);font-weight:600;margin-bottom:6px;"></div>
         <input type="text" id="newSubjName" placeholder="예: 형법">
       </div>
       <div class="form-group">
@@ -497,7 +519,7 @@
       </div>
       <div class="form-actions">
         <button type="button" class="btn btn-secondary" onclick="hideSubjects()">닫기</button>
-        <button type="button" class="btn btn-primary" onclick="addSubject()">과목 추가</button>
+        <button type="button" class="btn btn-primary" id="subjAddBtn" onclick="addSubject()">과목 추가</button>
       </div>
     </div>
   </div>
@@ -685,9 +707,12 @@
         });
       });
       singles.forEach(ev => {
+        const start = new Date(ev.date + 'T00:00:00');
+        const end = ev.endDate ? new Date(ev.endDate + 'T00:00:00') : null;
         items.push({
           itemKey: 'ev-' + ev.id,
-          date: new Date(ev.date + 'T00:00:00'),
+          date: start,
+          endDate: end && end > start ? end : null,
           time: times['ev-' + ev.id] || '',
           src: 'single',
           singleId: ev.id,
@@ -847,10 +872,18 @@
       detailMeta = {};
       const dayMap = {};
       allItems().forEach(it => {
-        const key = it.date.toDateString();
-        if (!dayMap[key]) dayMap[key] = [];
-        dayMap[key].push(it);
         detailMeta[it.itemKey] = it;
+        const addTo = (d, cont) => {
+          const key = d.toDateString();
+          if (!dayMap[key]) dayMap[key] = [];
+          dayMap[key].push(Object.assign({}, it, { cont: cont, cellDate: new Date(d) }));
+        };
+        addTo(it.date, false);
+        if (it.endDate) {
+          const d = new Date(it.date);
+          d.setDate(d.getDate() + 1);
+          for (; d <= it.endDate; d.setDate(d.getDate() + 1)) addTo(new Date(d), true);
+        }
       });
 
       let html = '';
@@ -862,7 +895,7 @@
       const todayStr = new Date().toDateString();
       for (let day = 1; day <= daysInMonth; day++) {
         const date = new Date(year, month, day);
-        const items = (dayMap[date.toDateString()] || []).sort((a,b) => timeOrd(a) - timeOrd(b) || (b.flag?1:0)-(a.flag?1:0) || PRI_ORD[a.priority]-PRI_ORD[b.priority]);
+        const items = (dayMap[date.toDateString()] || []).sort((a,b) => (a.endDate?0:1)-(b.endDate?0:1) || (a.endDate && b.endDate ? String(a.itemKey).localeCompare(String(b.itemKey)) : 0) || timeOrd(a) - timeOrd(b) || (b.flag?1:0)-(a.flag?1:0) || PRI_ORD[a.priority]-PRI_ORD[b.priority]);
         const hasFlag = items.some(it => it.flag && !doneMap[it.itemKey]);
         const itemsHtml = items.map(it => {
           const done = doneMap[it.itemKey] ? ' done' : '';
@@ -870,7 +903,25 @@
           const memoMark = memos[it.itemKey] ? ' 📝' : '';
           const flagMark = it.flag ? '⚑ ' : '';
           const bg = it.flag ? 'var(--exam)' : subj(it.subjectId).color;
-          return `<div class="day-item${hot}${done}" style="background:${bg}" onclick="event.stopPropagation();openDetail('${it.itemKey}')">${flagMark}${it.time ? it.time + ' ' : ''}${it.title}${memoMark}</div>`;
+          let seg = '';
+          let label = `${flagMark}${it.time ? it.time + ' ' : ''}${it.title}`;
+          if (it.endDate) {
+            seg = ' bar';
+            const isStart = it.cellDate.getTime() === it.date.getTime();
+            const isEnd = it.cellDate.getTime() === it.endDate.getTime();
+            const dow = it.cellDate.getDay();
+            if (!isStart && dow !== 0) seg += ' bar-l';
+            if (!isEnd && dow !== 6) seg += ' bar-r';
+            if (!isStart && dow !== 0) {
+              label = '&nbsp;'; // 제목은 시작일과 주 시작에만
+            } else {
+              // 이번 주에 이어지는 칸 수만큼 제목 표시 폭 확장 (바 끝에서 말줄임)
+              const span = Math.min(Math.round((it.endDate - it.cellDate) / 86400000), 6 - dow) + 1;
+              seg += ' bar-cap';
+              label = '<span class="bar-label" style="max-width:calc(' + (span * 100) + '% + ' + ((span - 1) * 8) + 'px)">' + label + '</span>';
+            }
+          }
+          return `<div class="day-item${hot}${done}${seg}" style="background:${bg}" onclick="event.stopPropagation();openDetail('${it.itemKey}')">${label}</div>`;
         }).join('');
         const cls = ['day']; if (date.toDateString() === todayStr) cls.push('today'); if (hasFlag) cls.push('hotday');
         html += `<div class="${cls.join(' ')}" onclick="quickAdd('${ymd(date)}')"><div class="day-num">${day}</div>${itemsHtml ? `<div class="day-items">${itemsHtml}</div>` : ''}</div>`;
@@ -929,20 +980,23 @@
       items.forEach(it => { detailMeta[it.itemKey] = it; });
 
       const sorter = (a,b) => a.date - b.date || timeOrd(a) - timeOrd(b) || (b.flag?1:0)-(a.flag?1:0) || PRI_ORD[a.priority]-PRI_ORD[b.priority];
-      const todays = items.filter(it => dday(it.date) === 0).sort(sorter);
+      const todays = items.filter(it => dday(it.date) === 0 || (it.endDate && it.date <= t0 && t0 <= it.endDate)).sort(sorter);
       const upcoming = items.filter(it => { const n = dday(it.date); return n >= 1 && n <= 7 && !doneMap[it.itemKey]; }).sort(sorter);
 
       const row = it => {
         const s = subj(it.subjectId);
         const n = dday(it.date);
+        const ongoing = it.endDate && it.date <= t0 && t0 <= it.endDate && n < 0;
+        const badge = ongoing ? '진행 중' : ddayLabel(n);
+        const range = it.endDate ? ' · ~' + it.endDate.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) : '';
         const checked = doneMap[it.itemKey] ? 'checked' : '';
         return `<div class="todo-row${doneMap[it.itemKey]?' done':''}" style="border-left-color:${it.flag?'var(--exam)':s.color}" onclick="openDetail('${it.itemKey}')">
           <input type="checkbox" ${checked} onclick="event.stopPropagation()" onchange="quickToggle('${it.itemKey}', this.checked)">
           <div class="todo-main">
             <div class="todo-title">${it.flag?'⚑ ':''}${it.time ? it.time + ' · ' : ''}${it.title}</div>
-            <div class="todo-sub">${s.name} · ${it.step} · ${PRI[it.priority]}${memos[it.itemKey]?' · 📝':''}</div>
+            <div class="todo-sub">${s.name} · ${it.step}${range} · ${PRI[it.priority]}${memos[it.itemKey]?' · 📝':''}</div>
           </div>
-          <span class="dbadge${n<=0&&it.flag?' due':''}">${ddayLabel(n)}</span>
+          <span class="dbadge${n<=0&&it.flag?' due':''}">${badge}</span>
         </div>`;
       };
 
@@ -1021,7 +1075,7 @@
           <button class="btn-delete" onclick="deleteSingle(${ev.id})">✕</button>
           <span class="plan-subj" style="background:${s.color}">${s.name}</span>
           <div class="plan-title">${flag?'⚑ ':''}${ev.title}</div>
-          <div class="plan-sub">${KIND_INFO[ev.kind]?KIND_INFO[ev.kind].label:'일정'} · ${fmt(d)}</div>
+          <div class="plan-sub">${KIND_INFO[ev.kind]?KIND_INFO[ev.kind].label:'일정'} · ${fmt(d)}${ev.endDate ? ' ~ ' + fmt(new Date(ev.endDate + 'T00:00:00')) : ''}</div>
           <label class="task${isDone?' done':''}" style="margin-top:9px;border-left-color:${s.color}">
             <input type="checkbox" ${isDone?'checked':''} onchange="quickToggle('${itemKey}', this.checked)">
             <div class="task-label"><strong>완료 체크</strong><span class="task-date">${PRI[ev.priority||'medium']} · ${ddayLabel(dday(d))}${memos[itemKey]?' · 📝':''}</span></div>
@@ -1055,9 +1109,14 @@
         if (ev) document.getElementById('detailKind').value = ev.kind;
       }
       document.getElementById('detailSub').textContent =
-        fmt(meta.date) + (meta.time ? ' ' + meta.time : '') + ' · ' + ddayLabel(dday(meta.date)) + ' · ' + PRI[meta.priority] + (meta.moved ? ' · 📌 수동 변경됨' : '');
+        fmt(meta.date) + (meta.endDate ? ' ~ ' + fmt(meta.endDate) : '') + (meta.time ? ' ' + meta.time : '') + ' · ' + ddayLabel(dday(meta.date)) + ' · ' + PRI[meta.priority] + (meta.moved ? ' · 📌 수동 변경됨' : '');
       document.getElementById('detailDate').value = ymd(meta.date);
       document.getElementById('detailTime').value = meta.time || '';
+      document.getElementById('detailEndWrap').style.display = meta.src === 'single' ? 'block' : 'none';
+      if (meta.src === 'single') {
+        const ev0 = singles.find(x => x.id === meta.singleId);
+        document.getElementById('detailEndDate').value = (ev0 && ev0.endDate) ? ev0.endDate : '';
+      }
       document.getElementById('detailDateReset').style.display =
         (meta.src === 'plan' && meta.moved) ? 'block' : 'none';
       document.getElementById('detailDone').checked = !!doneMap[itemKey];
@@ -1112,6 +1171,15 @@
           } else if (meta.src === 'plan') {
             if (newDate === ymd(meta.autoDate)) delete overrides[currentDetailKey];
             else overrides[currentDetailKey] = newDate;
+          }
+        }
+
+        // 종료일 반영 (단일 일정, 시작일보다 뒤일 때만)
+        if (meta && meta.src === 'single') {
+          const ev = singles.find(x => x.id === meta.singleId);
+          if (ev) {
+            const endVal = document.getElementById('detailEndDate').value;
+            if (endVal && endVal > ev.date) ev.endDate = endVal; else delete ev.endDate;
           }
         }
         saveData();
@@ -1181,6 +1249,7 @@
       document.getElementById('titleInput').value = '';
       document.getElementById('dateInput').value = '';
       document.getElementById('timeInput').value = '';
+      document.getElementById('endDateInput').value = '';
       document.getElementById('priorityInput').value = 'medium';
       document.getElementById('modeInput').value = 'brief';
       onModeChange();
@@ -1189,12 +1258,13 @@
     function onModeChange() {
       const mode = document.getElementById('modeInput').value;
       document.getElementById('kindGroup').style.display = mode === 'single' ? 'block' : 'none';
+      document.getElementById('endDateGroup').style.display = mode === 'single' ? 'block' : 'none';
       document.getElementById('dateLabel').textContent =
-        mode === 'exam' ? '시험일' : mode === 'brief' ? '제출 마감일' : '날짜';
+        (mode === 'exam' || mode === 'examonly') ? '시험일' : mode === 'brief' ? '제출 마감일' : '날짜';
       document.getElementById('timeLabel').textContent =
-        mode === 'exam' ? '시험 시간 (선택)' : mode === 'brief' ? '마감 시간 (선택)' : '시간 (선택)';
+        (mode === 'exam' || mode === 'examonly') ? '시험 시간 (선택)' : mode === 'brief' ? '마감 시간 (선택)' : '시간 (선택)';
       document.getElementById('titleLabel').textContent =
-        mode === 'single' ? '제목' : '제목 (판례명·시험명)';
+        mode === 'single' ? '제목' : mode === 'examonly' ? '시험명 (예: 계약법 중간고사)' : '제목 (판례명·시험명)';
     }
 
     function addItem(e) {
@@ -1208,8 +1278,14 @@
 
       const timeVal = document.getElementById('timeInput').value;
       const newId = Date.now();
-      if (mode === 'single') {
-        singles.push({ id: newId, subjectId, title, date: dateVal, kind: document.getElementById('kindInput').value, priority });
+      if (mode === 'examonly') {
+        singles.push({ id: newId, subjectId, title, date: dateVal, kind: 'examday', priority });
+        if (timeVal) times['ev-' + newId] = timeVal;
+      } else if (mode === 'single') {
+        const single = { id: newId, subjectId, title, date: dateVal, kind: document.getElementById('kindInput').value, priority };
+        const endVal = document.getElementById('endDateInput').value;
+        if (endVal && endVal > dateVal) single.endDate = endVal;
+        singles.push(single);
         if (timeVal) times['ev-' + newId] = timeVal;
       } else {
         plans.push({ id: newId, subjectId, title, dueDate: dateVal, planType: mode, priority });
@@ -1223,18 +1299,46 @@
     function showSubjects() { renderSubjModal(); document.getElementById('subjModal').classList.add('active'); }
     function hideSubjects() { document.getElementById('subjModal').classList.remove('active'); }
 
+    let editingSubjId = null;
+
     function renderSubjModal() {
+      editingSubjId = null;
       document.getElementById('subjList').innerHTML = subjects.map(s =>
-        `<div class="subj-row">
+        `<div class="subj-row" onclick="editSubject('${s.id}')">
           <span class="subj-dot" style="background:${s.color}"></span>
           <span class="subj-name">${s.name}</span>
-          <button class="subj-del" onclick="deleteSubject('${s.id}')">✕</button>
+          <span style="font-size:11px;color:var(--soft);flex-shrink:0;">✎</span>
+          <button class="subj-del" onclick="event.stopPropagation();deleteSubject('${s.id}')">✕</button>
         </div>`).join('');
+      document.getElementById('newSubjName').value = '';
+      document.getElementById('subjEditHint').style.display = 'none';
+      document.getElementById('subjAddBtn').textContent = '과목 추가';
       const used = subjects.map(s => s.color);
       selectedColor = PALETTE.find(c => !used.includes(c)) || PALETTE[0];
+      renderPaletteSwatches();
+    }
+
+    function renderPaletteSwatches() {
       document.getElementById('palette').innerHTML = PALETTE.map(c =>
         `<span class="swatch${c===selectedColor?' sel':''}" style="background:${c}" onclick="pickColor('${c}', this)"></span>`).join('');
+      const cc = document.getElementById('customColor');
+      if (cc && selectedColor) cc.value = selectedColor;
     }
+
+    function editSubject(id) {
+      const s = subjects.find(x => x.id === id);
+      if (!s) return;
+      editingSubjId = id;
+      document.getElementById('newSubjName').value = s.name;
+      selectedColor = s.color;
+      renderPaletteSwatches();
+      const hint = document.getElementById('subjEditHint');
+      hint.style.display = 'block';
+      hint.innerHTML = '"' + s.name + '" 수정 중 · <a onclick="cancelSubjEdit()" style="text-decoration:underline;cursor:pointer;">취소</a>';
+      document.getElementById('subjAddBtn').textContent = '수정 저장';
+    }
+
+    function cancelSubjEdit() { renderSubjModal(); }
 
     function pickColor(c, el) {
       selectedColor = c;
@@ -1250,8 +1354,12 @@
     function addSubject() {
       const name = document.getElementById('newSubjName').value.trim();
       if (!name) return;
-      subjects.push({ id: 's' + Date.now(), name, color: selectedColor });
-      document.getElementById('newSubjName').value = '';
+      if (editingSubjId) {
+        const s = subjects.find(x => x.id === editingSubjId);
+        if (s) { s.name = name; s.color = selectedColor; }
+      } else {
+        subjects.push({ id: 's' + Date.now(), name, color: selectedColor });
+      }
       saveData(); renderAll(); renderSubjModal();
     }
 
