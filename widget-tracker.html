@@ -1,0 +1,19 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Study Tracker</title><style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;color:#222}
+.card{height:100vh;background:#fff;border:1px solid #ececea;border-radius:18px;padding:16px 18px;display:flex;flex-direction:column;overflow:hidden}
+.h{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;padding-bottom:10px;border-bottom:1px solid #f0f0ee}
+.h span+span{font-size:11px;color:#aaa;font-weight:600}
+.w{flex:1;display:flex;align-items:center;min-height:0}
+table{width:100%;border-collapse:collapse}
+th{font-size:10px;color:#aaa;font-weight:600;padding:3px 0}
+td{text-align:center;padding:5px 0}
+td.n{text-align:left;font-size:12px;font-weight:700;white-space:nowrap;padding-right:8px}
+.o{display:inline-block;width:17px;height:17px;border-radius:50%;background:#ececec;cursor:pointer}.o.f{background:#222}
+</style></head><body><div class="card"><div class="h"><span>Study Tracker</span><span id="rc"></span></div><div class="w"><table id="tb"></table></div></div>
+<script>
+var rows=['Contracts','Civ Pro','Torts','Lawyering','MRFL'],days=['M','T','W','T','F','S','S'],n0=new Date(),mon=new Date(n0.getFullYear(),n0.getMonth(),n0.getDate()-((n0.getDay()+6)%7)),key='trk-'+mon.getFullYear()+'-'+(mon.getMonth()+1)+'-'+mon.getDate(),st={};
+try{st=JSON.parse(localStorage.getItem(key))||{}}catch(x){}
+function r(){var h='<tr><th></th>'+days.map(function(d){return '<th>'+d+'</th>'}).join('')+'</tr>',c=0;rows.forEach(function(w,i){h+='<tr><td class="n">'+w+'</td>';for(var j=0;j<7;j++){var k=i+'-'+j;if(st[k])c++;h+='<td><span class="o'+(st[k]?' f':'')+'" data-k="'+k+'"></span></td>'}h+='</tr>'});
+document.getElementById('tb').innerHTML=h;var tot=rows.length*7;document.getElementById('rc').textContent=c+' / '+tot+' · '+Math.round(c/tot*100)+'%'}
+document.getElementById('tb').onclick=function(e){var k=e.target.getAttribute&&e.target.getAttribute('data-k');if(!k)return;st[k]=!st[k];try{localStorage.setItem(key,JSON.stringify(st))}catch(x){}r()};r();
+</script></body></html>

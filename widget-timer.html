@@ -1,0 +1,16 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Study Timer</title><style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:transparent;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;color:#222}
+.card{position:relative;height:100vh;background:#fff;border:1px solid #ececea;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5vmin;overflow:hidden}
+.t{position:absolute;top:16px;left:18px;font-size:12px;font-weight:700}
+.n{font-size:min(15vw,30vh);font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-1px;line-height:1}
+.b{display:flex;gap:8px}
+button{border:0;border-radius:999px;padding:9px 22px;font-size:12px;font-weight:700;cursor:pointer;background:#222;color:#fff}
+button.s{background:#f1f1f0;color:#777}
+</style></head><body><div class="card"><div class="t">Study Timer</div><div class="n" id="t">00:00:00</div><div class="b"><button id="go">Start</button><button class="s" id="rs">Reset</button></div></div>
+<script>
+var run=false,base=0,t0=0,el=document.getElementById('t'),go=document.getElementById('go');
+function f(ms){var s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60);s=s%60;return [h,m,s].map(function(x){return String(x).padStart(2,'0')}).join(':')}
+function tick(){el.textContent=f(base+(run?Date.now()-t0:0))}
+go.onclick=function(){if(run){base+=Date.now()-t0;run=false;go.textContent='Start'}else{t0=Date.now();run=true;go.textContent='Pause'}tick()};
+document.getElementById('rs').onclick=function(){run=false;base=0;go.textContent='Start';tick()};setInterval(tick,500);
+</script></body></html>
